@@ -10,7 +10,6 @@ const ai = new GoogleGenAI({
   apiKey: env.GEMINI_API_KEY,
 });
 
-
 // -----------------------------
 // Build Conversation
 // -----------------------------
@@ -20,14 +19,10 @@ const buildConversation = (
   memories = [],
   intent
 ) => {
-
-  // AI Tool Router
   const engine = aiToolRouter(intent);
 
   const systemPrompt =
-    engine?.prompt ||
-    SYSTEM_PROMPTS.general;
-
+    engine?.prompt || SYSTEM_PROMPTS.general;
 
   const memoryPrompt =
     memories.length > 0
@@ -35,18 +30,17 @@ const buildConversation = (
 Known facts about this user:
 
 ${memories
-        .map(
-          (m) =>
-            `- ${m.memory_key}: ${m.memory_value}`
-        )
-        .join("\n")}
+  .map(
+    (m) =>
+      `- ${m.memory_key}: ${m.memory_value}`
+  )
+  .join("\n")}
 
 Use these facts whenever they are relevant.
 
 Do not mention these memories unless the user asks or they naturally help answer the question.
 `
       : "";
-
 
   const geminiHistory = history.map((msg) => ({
     role:
@@ -61,11 +55,9 @@ Do not mention these memories unless the user asks or they naturally help answer
     ],
   }));
 
-
   return [
     {
       role: "user",
-
       parts: [
         {
           text: `
@@ -77,13 +69,10 @@ ${memoryPrompt}
       ],
     },
 
-
     ...geminiHistory,
-
 
     {
       role: "user",
-
       parts: [
         {
           text: message,
@@ -93,7 +82,43 @@ ${memoryPrompt}
   ];
 };
 
+// -----------------------------
+// Generate Conversation Title
+// -----------------------------
+export const generateConversationTitle =
+  async (message) => {
+    try {
+      const response =
+        await ai.models.generateContent({
+          model: "gemini-flash-latest",
+          contents: `
+Generate a very short conversation title.
 
+Rules:
+- Maximum 5 words
+- No quotes
+- No punctuation at the end
+- Capitalize naturally
+- Return ONLY the title
+
+User Message:
+${message}
+`,
+        });
+
+      return (
+        response.text?.trim() ||
+        message.substring(0, 40)
+      );
+    } catch (err) {
+      console.error(
+        "Title Generation Error:",
+        err.message
+      );
+
+      return message.substring(0, 40);
+    }
+  };
 
 // -----------------------------
 // Normal Chat
@@ -103,10 +128,8 @@ export const chatWithAI = async (
   history = [],
   memories = []
 ) => {
-
   const intent =
     detectIntent(message);
-
 
   const conversation =
     buildConversation(
@@ -116,27 +139,17 @@ export const chatWithAI = async (
       intent
     );
 
-
   const response =
     await ai.models.generateContent({
-
       model: "gemini-flash-latest",
-
       contents: conversation,
-
     });
 
-
   return {
-
     intent,
-
     text: response.text,
-
   };
 };
-
-
 
 // -----------------------------
 // Streaming Chat
@@ -147,12 +160,8 @@ export const chatWithAIStream =
     history = [],
     memories = []
   ) => {
-
-
     const intent =
       detectIntent(message);
-
-
 
     const conversation =
       buildConversation(
@@ -162,25 +171,14 @@ export const chatWithAIStream =
         intent
       );
 
-
-
     const stream =
       await ai.models.generateContentStream({
-
         model: "gemini-flash-latest",
-
         contents: conversation,
-
       });
 
-
-
     return {
-
       intent,
-
       stream,
-
     };
-
   };

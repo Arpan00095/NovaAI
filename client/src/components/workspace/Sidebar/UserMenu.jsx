@@ -12,7 +12,11 @@ const UserMenu = ({ collapsed }) => {
 
   const navigate = useNavigate();
 
-  const { user, logout } = useContext(AuthContext);
+  const {
+    user,
+    logout,
+    isAuthenticated,
+  } = useContext(AuthContext);
 
   useEffect(() => {
     const handleClickOutside = (event) => {
@@ -24,7 +28,10 @@ const UserMenu = ({ collapsed }) => {
       }
     };
 
-    document.addEventListener("mousedown", handleClickOutside);
+    document.addEventListener(
+      "mousedown",
+      handleClickOutside
+    );
 
     return () => {
       document.removeEventListener(
@@ -39,7 +46,7 @@ const UserMenu = ({ collapsed }) => {
 
     logout();
 
-    navigate("/login");
+    navigate("/");
   };
 
   return (
@@ -47,8 +54,6 @@ const UserMenu = ({ collapsed }) => {
       ref={menuRef}
       className="relative"
     >
-      {/* User Card */}
-
       <button
         onClick={() => setOpen((prev) => !prev)}
         className="
@@ -66,8 +71,6 @@ const UserMenu = ({ collapsed }) => {
           duration-200
         "
       >
-        {/* Avatar */}
-
         <div
           className="
             h-11
@@ -83,18 +86,24 @@ const UserMenu = ({ collapsed }) => {
             text-lg
           "
         >
-          {user?.full_name?.charAt(0)?.toUpperCase() || "A"}
+          {isAuthenticated
+            ? user?.full_name?.charAt(0)?.toUpperCase() || "U"
+            : "G"}
         </div>
 
         {!collapsed && (
           <>
             <div className="flex-1 overflow-hidden text-left">
               <p className="truncate font-semibold text-white">
-                {user?.full_name || "User"}
+                {isAuthenticated
+                  ? user?.full_name || "User"
+                  : "Guest"}
               </p>
 
               <p className="truncate text-sm text-slate-400">
-                {user?.email || "No Email"}
+                {isAuthenticated
+                  ? user?.email || "No Email"
+                  : "Not Logged In"}
               </p>
             </div>
 
@@ -111,11 +120,11 @@ const UserMenu = ({ collapsed }) => {
         )}
       </button>
 
-      {/* Dropdown */}
-
       {open && !collapsed && (
         <div className="absolute bottom-16 left-0 w-full z-50">
-          <UserDropdown onLogout={handleLogout} />
+          <UserDropdown
+            onLogout={handleLogout}
+          />
         </div>
       )}
     </div>

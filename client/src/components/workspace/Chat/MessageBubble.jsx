@@ -19,6 +19,8 @@ const MessageBubble = ({ message }) => {
   const [copied, setCopied] = useState(false);
 
   const handleCopy = async () => {
+    if (!message.content) return;
+
     await navigator.clipboard.writeText(message.content);
 
     setCopied(true);
@@ -30,54 +32,58 @@ const MessageBubble = ({ message }) => {
 
   return (
     <div
-      className={`flex ${
+      className={`group flex ${
         isUser ? "justify-end" : "justify-start"
       }`}
     >
       <div
-        className={`
-          relative
-          group
-          max-w-[90%]
-          rounded-2xl
-          px-5
-          py-4
-          ${
-            isUser
-              ? "bg-blue-600 text-white"
-              : "bg-[#2a2a2a] border border-slate-700 text-slate-100"
-          }
-        `}
+        className={`max-w-[90%] ${
+          isUser
+            ? "rounded-3xl bg-blue-600 px-5 py-4 text-white"
+            : "text-slate-100"
+        }`}
       >
-        {!isUser && (
-          <button
-            onClick={handleCopy}
-            className="
-              absolute
-              top-3
-              right-3
-              opacity-0
-              group-hover:opacity-100
-              transition
-              text-slate-400
-              hover:text-white
-            "
-          >
-            {copied ? (
-              <Check size={18} />
-            ) : (
-              <Copy size={18} />
-            )}
-          </button>
-        )}
+        {/* USER MESSAGE */}
 
-        {isUser ? (
-          <div className="whitespace-pre-wrap">
+        {isUser && (
+          <div className="whitespace-pre-wrap leading-7">
             {message.content}
           </div>
-        ) : (
+        )}
+
+        {/* IMAGE */}
+
+        {!isUser && message.image && (
+          <img
+            src={message.image}
+            alt="Generated"
+            className="
+              rounded-2xl
+              border
+              border-slate-700
+              max-w-full
+              shadow-lg
+            "
+          />
+        )}
+
+        {/* ASSISTANT */}
+
+        {!isUser && !message.image && (
           <>
-            <div className="prose prose-invert max-w-none prose-pre:bg-transparent prose-pre:p-0">
+            <div
+              className="
+                prose
+                prose-invert
+                max-w-none
+                prose-pre:bg-transparent
+                prose-pre:p-0
+                prose-p:text-slate-200
+                prose-li:text-slate-200
+                prose-strong:text-white
+                prose-headings:text-white
+              "
+            >
               <ReactMarkdown
                 remarkPlugins={[remarkGfm]}
                 components={{
@@ -89,19 +95,21 @@ const MessageBubble = ({ message }) => {
                     } = props;
 
                     const match =
-                      /language-(\w+)/.exec(className || "");
+                      /language-(\w+)/.exec(
+                        className || ""
+                      );
 
-                    const isInline = !className;
+                    const inline = !className;
 
-                    if (isInline) {
+                    if (inline) {
                       return (
                         <code
                           {...rest}
                           className="
-                            rounded
+                            rounded-md
                             bg-slate-800
                             px-1.5
-                            py-0.5
+                            py-1
                             text-pink-400
                           "
                         >
@@ -112,8 +120,13 @@ const MessageBubble = ({ message }) => {
 
                     return (
                       <CodeBlock
-                        language={match?.[1] || "text"}
-                        code={String(children).replace(/\n$/, "")}
+                        language={
+                          match?.[1] || "text"
+                        }
+                        code={String(children).replace(
+                          /\n$/,
+                          ""
+                        )}
                       />
                     );
                   },
@@ -123,27 +136,41 @@ const MessageBubble = ({ message }) => {
               </ReactMarkdown>
             </div>
 
+            {/* Actions */}
+
             <div
               className="
-                mt-5
+                mt-3
                 flex
                 items-center
-                gap-2
-                border-t
-                border-slate-700
-                pt-4
+                gap-1
+                opacity-0
+                group-hover:opacity-100
+                transition
               "
             >
               <button
+                onClick={handleCopy}
                 className="
-                  h-9
-                  w-9
                   rounded-lg
-                  hover:bg-slate-700
+                  p-2
+                  hover:bg-slate-800
                   transition
-                  flex
-                  items-center
-                  justify-center
+                "
+              >
+                {copied ? (
+                  <Check size={16} />
+                ) : (
+                  <Copy size={16} />
+                )}
+              </button>
+
+              <button
+                className="
+                  rounded-lg
+                  p-2
+                  hover:bg-slate-800
+                  transition
                 "
               >
                 <ThumbsUp size={16} />
@@ -151,14 +178,10 @@ const MessageBubble = ({ message }) => {
 
               <button
                 className="
-                  h-9
-                  w-9
                   rounded-lg
-                  hover:bg-slate-700
+                  p-2
+                  hover:bg-slate-800
                   transition
-                  flex
-                  items-center
-                  justify-center
                 "
               >
                 <ThumbsDown size={16} />
@@ -166,20 +189,19 @@ const MessageBubble = ({ message }) => {
 
               <button
                 className="
-                  h-9
-                  px-3
-                  rounded-lg
-                  hover:bg-slate-700
-                  transition
                   flex
                   items-center
                   gap-2
+                  rounded-lg
+                  px-3
+                  py-2
+                  hover:bg-slate-800
+                  transition
+                  text-sm
                 "
               >
                 <RotateCcw size={15} />
-                <span className="text-sm">
-                  Regenerate
-                </span>
+                Regenerate
               </button>
             </div>
           </>

@@ -25,15 +25,23 @@ const ConversationItem = ({
   } = useContext(ConversationContext);
 
   const [open, setOpen] = useState(false);
-
-  const [editing, setEditing] =
-    useState(false);
-
-  const [title, setTitle] = useState(
-    chat.title
-  );
+  const [editing, setEditing] = useState(false);
+  const [title, setTitle] = useState(chat.title);
 
   const inputRef = useRef(null);
+  const menuRef = useRef(null);
+
+  // ==========================
+  // Sync Title
+  // ==========================
+
+  useEffect(() => {
+    setTitle(chat.title);
+  }, [chat.title]);
+
+  // ==========================
+  // Focus Input
+  // ==========================
 
   useEffect(() => {
     if (editing) {
@@ -41,6 +49,36 @@ const ConversationItem = ({
       inputRef.current?.select();
     }
   }, [editing]);
+
+  // ==========================
+  // Close Menu Outside Click
+  // ==========================
+
+  useEffect(() => {
+    const handleOutsideClick = (e) => {
+      if (
+        menuRef.current &&
+        !menuRef.current.contains(e.target)
+      ) {
+        setOpen(false);
+      }
+    };
+
+    document.addEventListener(
+      "mousedown",
+      handleOutsideClick
+    );
+
+    return () =>
+      document.removeEventListener(
+        "mousedown",
+        handleOutsideClick
+      );
+  }, []);
+
+  // ==========================
+  // Save Rename
+  // ==========================
 
   const saveRename = async () => {
     const newTitle = title.trim();
@@ -54,16 +92,36 @@ const ConversationItem = ({
       return;
     }
 
-    await renameChat(chat.id, newTitle);
+    try {
+      await renameChat(chat.id, newTitle);
+    } finally {
+      setEditing(false);
+    }
+  };
 
-    setEditing(false);
+  // ==========================
+  // Delete Chat
+  // ==========================
+
+  const handleDelete = async () => {
+    const ok = window.confirm(
+      "Delete this conversation?"
+    );
+
+    if (!ok) return;
+
+    await deleteChat(chat.id);
   };
 
   return (
-    <div className="relative group">
-
+    <div
+      ref={menuRef}
+      className="relative group"
+    >
       <button
-        onClick={editing ? undefined : onClick}
+        onClick={
+          editing ? undefined : onClick
+        }
         className={`
           w-full
           flex
@@ -75,10 +133,9 @@ const ConversationItem = ({
           text-left
           transition-all
           duration-200
-          ${
-            active
-              ? "bg-blue-600 text-white"
-              : "hover:bg-slate-800 text-slate-200"
+          ${active
+            ? "bg-blue-600 text-white"
+            : "hover:bg-slate-800 text-slate-200"
           }
         `}
       >
@@ -115,10 +172,16 @@ const ConversationItem = ({
               outline-none
               border-b
               border-blue-500
+              text-white
             "
           />
         ) : (
-          <span className="flex-1 truncate">
+          <span
+            className="flex-1 truncate"
+            onDoubleClick={() =>
+              setEditing(true)
+            }
+          >
             {chat.title}
           </span>
         )}
@@ -127,15 +190,14 @@ const ConversationItem = ({
           <div
             onClick={(e) => {
               e.stopPropagation();
-              setOpen(!open);
+              setOpen((prev) => !prev);
             }}
             className={`
-              cursor-pointer
-              transition
-              ${
-                active
-                  ? "text-white"
-                  : "opacity-0 group-hover:opacity-100 text-slate-400 hover:text-white"
+                 cursor-pointer
+                 transition
+                 ${active
+                ? "text-white"
+                : "opacity-0 group-hover:opacity-100 text-slate-400 hover:text-white"
               }
             `}
           >
@@ -174,6 +236,7 @@ const ConversationItem = ({
               px-4
               py-3
               hover:bg-slate-800
+              text-white
             "
           >
             <Pencil size={16} />
@@ -181,19 +244,10 @@ const ConversationItem = ({
           </button>
 
           <button
-            onClick={async (e) => {
+            onClick={(e) => {
               e.stopPropagation();
-
               setOpen(false);
-
-              const ok =
-                window.confirm(
-                  "Delete this conversation?"
-                );
-
-              if (!ok) return;
-
-              await deleteChat(chat.id);
+              handleDelete();
             }}
             className="
               w-full
@@ -211,7 +265,6 @@ const ConversationItem = ({
           </button>
         </div>
       )}
-
     </div>
   );
 };

@@ -1,6 +1,7 @@
 import {
   chatWithAI,
   chatWithAIStream,
+  generateConversationTitle,
 } from "../services/ai.service.js";
 
 import {
@@ -8,6 +9,7 @@ import {
   saveMessage,
   touchConversation,
   getConversationMessages,
+  updateConversationTitle,
 } from "../services/conversation.service.js";
 
 import { extractMemory } from "../utils/memoryExtractor.js";
@@ -16,6 +18,10 @@ import {
   saveMemory,
   getMemories,
 } from "../services/memory.service.js";
+
+// ======================================================
+// NORMAL CHAT
+// ======================================================
 
 export const chat = async (req, res) => {
   try {
@@ -28,33 +34,59 @@ export const chat = async (req, res) => {
       });
     }
 
-    let currentConversationId = conversationId;
+    // ====================================
+    // Guest Mode
+    // ====================================
 
-    // Create conversation if needed
-    if (!currentConversationId) {
-      const conversation = await createConversation(
-        req.user.id,
-        message.substring(0, 40)
+    if (!req.user) {
+      const aiResult = await chatWithAI(
+        message,
+        [],
+        []
       );
 
-      currentConversationId = conversation.id;
+      return res.json({
+        success: true,
+        guest: true,
+        response: aiResult.text,
+        intent: aiResult.intent,
+      });
     }
 
-    // Previous history
-    const history = await getConversationMessages(
-      currentConversationId
-    );
+    // ====================================
+    // Logged In User
+    // ====================================
 
-    // Save user message
+    let currentConversationId =
+      conversationId;
+
+    let isNewConversation = false;
+
+    if (!currentConversationId) {
+      const conversation =
+        await createConversation(
+          req.user.id,
+          "New Chat"
+        );
+
+      currentConversationId =
+        conversation.id;
+
+      isNewConversation = true;
+    }
+
+    const history =
+      await getConversationMessages(
+        currentConversationId
+      );
+
     await saveMessage(
       currentConversationId,
       "user",
       message
     );
 
-    // -------------------------
-    // Extract Memory
-    // -------------------------
+    // Memory
 
     const extractedMemories =
       extractMemory(message);
@@ -74,31 +106,33 @@ export const chat = async (req, res) => {
       }
     }
 
-    // -------------------------
-    // Load Stored Memories
-    // -------------------------
-
     const storedMemories =
       await getMemories(req.user.id);
 
-    // -------------------------
-    // Ask Gemini
-    // -------------------------
+    const aiResult =
+      await chatWithAI(
+        message,
+        history,
+        storedMemories
+      );
 
-    const aiResult = await chatWithAI(
-      message,
-      history,
-      storedMemories
-    );
-
-    const aiReply = aiResult.text;
-
-    // Save AI response
     await saveMessage(
       currentConversationId,
       "assistant",
-      aiReply
+      aiResult.text
     );
+
+    if (isNewConversation) {
+      const title =
+        await generateConversationTitle(
+          message
+        );
+
+      await updateConversationTitle(
+        currentConversationId,
+        title
+      );
+    }
 
     await touchConversation(
       currentConversationId
@@ -106,8 +140,10 @@ export const chat = async (req, res) => {
 
     return res.json({
       success: true,
-      conversationId: currentConversationId,
-      response: aiReply,
+      conversationId:
+        currentConversationId,
+      response: aiResult.text,
+      intent: aiResult.intent,
     });
 
   } catch (error) {
@@ -125,9 +161,19 @@ export const chat = async (req, res) => {
   }
 };
 
-export const streamChat = async (req, res) => {
+// ======================================================
+// STREAM CHAT
+// ======================================================
+
+export const streamChat = async (
+  req,
+  res
+) => {
   try {
-    const { message, conversationId } = req.body;
+    const {
+      message,
+      conversationId,
+    } = req.body;
 
     if (!message?.trim()) {
       return res.status(400).json({
@@ -136,17 +182,73 @@ export const streamChat = async (req, res) => {
       });
     }
 
-    let currentConversationId = conversationId;
+    // ====================================
+    // Guest Mode
+    // ====================================
+
+    if (!req.user) {
+      res.setHeader(
+        "Content-Type",
+        "text/event-stream"
+      );
+
+      res.setHeader(
+        "Cache-Control",
+        "no-cache"
+      );
+
+      res.setHeader(
+        "Connection",
+        "keep-alive"
+      );
+
+      const aiResult =
+        await chatWithAIStream(
+          message,
+          [],
+          []
+        );
+
+      for await (const chunk of aiResult.stream) {
+        const text = chunk.text || "";
+
+        res.write(
+          `data: ${JSON.stringify({
+            text,
+          })}\n\n`
+        );
+      }
+
+      res.write(
+        `data: ${JSON.stringify({
+          done: true,
+          guest: true,
+        })}\n\n`
+      );
+
+      return res.end();
+    }
+
+    // ====================================
+    // Logged In User
+    // ====================================
+
+    let currentConversationId =
+      conversationId;
+
+    let isNewConversation = false;
 
     if (!currentConversationId) {
       const conversation =
         await createConversation(
           req.user.id,
-          message.substring(0, 40)
+          "New Chat"
         );
 
       currentConversationId =
         conversation.id;
+
+      isNewConversation = true;
     }
 
     const history =
@@ -159,6 +261,10 @@ export const streamChat = async (req, res) => {
       "user",
       message
     );
+
+    // -------------------------
+    // Memory Extraction
+    // -------------------------
 
     const extractedMemories =
       extractMemory(message);
@@ -185,6 +291,10 @@ export const streamChat = async (req, res) => {
         storedMemories
       );
 
+    // -------------------------
+    // SSE Headers
+    // -------------------------
+
     res.setHeader(
       "Content-Type",
       "text/event-stream"
@@ -200,9 +310,14 @@ export const streamChat = async (req, res) => {
       "keep-alive"
     );
 
+    // -------------------------
+    // Text Stream
+    // -------------------------
+
     let fullResponse = "";
 
     for await (const chunk of aiResult.stream) {
+
       const text =
         chunk.text || "";
 
@@ -213,6 +328,7 @@ export const streamChat = async (req, res) => {
           text,
         })}\n\n`
       );
+
     }
 
     await saveMessage(
@@ -220,6 +336,18 @@ export const streamChat = async (req, res) => {
       "assistant",
       fullResponse
     );
+
+    if (isNewConversation) {
+      const title =
+        await generateConversationTitle(
+          message
+        );
+
+      await updateConversationTitle(
+        currentConversationId,
+        title
+      );
+    }
 
     await touchConversation(
       currentConversationId
@@ -238,9 +366,44 @@ export const streamChat = async (req, res) => {
   } catch (error) {
     console.error(error);
 
+    let message =
+      "Something went wrong. Please try again.";
+
+    if (
+      error.message?.includes("RESOURCE_EXHAUSTED") ||
+      error.message?.includes("quota") ||
+      error.message?.includes("429")
+    ) {
+      let retryText = "a few minutes";
+
+      const retryMatch =
+        error.message?.match(
+          /"retryDelay":\s*"(\d+)s"/
+        );
+
+      if (retryMatch) {
+        const seconds = Number(retryMatch[1]);
+
+        if (seconds < 60) {
+          retryText = `${seconds} seconds`;
+        } else if (seconds < 3600) {
+          retryText = `${Math.ceil(
+            seconds / 60
+          )} minutes`;
+        } else {
+          retryText = `${Math.ceil(
+            seconds / 3600
+          )} hour(s)`;
+        }
+      }
+
+      message =
+        `NovaAI has reached its free AI limit. Please try again after ${retryText}.`;
+    }
+
     res.write(
       `data: ${JSON.stringify({
-        error: error.message,
+        error: message,
       })}\n\n`
     );
 

@@ -1,6 +1,8 @@
 import api from "./api";
 
+// -----------------------------
 // Normal Chat
+// -----------------------------
 export const sendMessage = async (
   message,
   conversationId = null
@@ -13,13 +15,16 @@ export const sendMessage = async (
   return data;
 };
 
+// -----------------------------
 // Streaming Chat
+// -----------------------------
 export const sendStreamMessage = async ({
   message,
   conversationId,
   token,
   onMessage,
   onDone,
+  onImage,
 }) => {
   const response = await fetch(
     "http://localhost:5000/api/ai/chat/stream",
@@ -46,7 +51,8 @@ export const sendStreamMessage = async ({
   let buffer = "";
 
   while (true) {
-    const { done, value } = await reader.read();
+    const { done, value } =
+      await reader.read();
 
     if (done) break;
 
@@ -56,20 +62,41 @@ export const sendStreamMessage = async ({
 
     const events = buffer.split("\n\n");
 
-    buffer = events.pop();
+    buffer = events.pop() || "";
 
     for (const event of events) {
-      if (!event.startsWith("data: ")) continue;
+      if (!event.startsWith("data: "))
+        continue;
 
       const payload = JSON.parse(
         event.replace("data: ", "")
       );
 
-      if (payload.text) {
+      // -----------------------------
+      // Streaming Text
+      // -----------------------------
+      if (payload.text && onMessage) {
         onMessage(payload.text);
       }
 
-      if (payload.done) {
+      // -----------------------------
+      // Image Response
+      // -----------------------------
+      if (payload.image && onImage) {
+        onImage(payload.image);
+      }
+
+      // -----------------------------
+      // Server Error
+      // -----------------------------
+      if (payload.error) {
+        throw new Error(payload.error);
+      }
+
+      // -----------------------------
+      // Stream Finished
+      // -----------------------------
+      if (payload.done && onDone) {
         onDone(payload.conversationId);
       }
     }

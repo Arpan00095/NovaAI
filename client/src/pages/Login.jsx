@@ -1,8 +1,15 @@
 import { useContext, useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
 
+import { GoogleLogin } from "@react-oauth/google";
+import toast from "react-hot-toast";
+
 import { AuthContext } from "../contexts/AuthContext";
-import { loginUser } from "../services/auth.service";
+
+import {
+  loginUser,
+  googleLogin,
+} from "../services/auth.service";
 
 const Login = () => {
   const navigate = useNavigate();
@@ -23,6 +30,10 @@ const Login = () => {
     }));
   };
 
+  // ==========================
+  // Email Login
+  // ==========================
+
   const handleSubmit = async (e) => {
     e.preventDefault();
 
@@ -36,15 +47,47 @@ const Login = () => {
 
       login(data.user, data.token);
 
-      navigate("/ai");
+      toast.success("Login successful 🚀");
+
+      navigate("/");
 
     } catch (error) {
-      alert(
+      toast.error(
         error.response?.data?.message ||
         "Login failed"
       );
     } finally {
       setLoading(false);
+    }
+  };
+
+  // ==========================
+  // Google Login
+  // ==========================
+
+  const handleGoogleSuccess = async (
+    credentialResponse
+  ) => {
+    try {
+      const data = await googleLogin(
+        credentialResponse.credential
+      );
+
+      login(data.user, data.token);
+
+      toast.success(
+        "Google Login Successful 🚀"
+      );
+
+      navigate("/");
+
+    } catch (error) {
+      console.error(error);
+
+      toast.error(
+        error.response?.data?.message ||
+        "Google Login Failed"
+      );
     }
   };
 
@@ -82,16 +125,47 @@ const Login = () => {
 
         <button
           disabled={loading}
-          className="w-full py-3 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-semibold"
+          className="w-full py-3 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-semibold disabled:opacity-50"
         >
-          {loading ? "Logging in..." : "Login"}
+          {loading
+            ? "Logging in..."
+            : "Login"}
         </button>
+
+        {/* Divider */}
+
+        <div className="my-6 flex items-center gap-3">
+          <div className="flex-1 h-px bg-slate-700" />
+
+          <span className="text-slate-500 text-sm">
+            OR
+          </span>
+
+          <div className="flex-1 h-px bg-slate-700" />
+        </div>
+
+        {/* Google Login */}
+
+        <div className="flex justify-center">
+          <GoogleLogin
+            onSuccess={handleGoogleSuccess}
+            onError={() =>
+              toast.error(
+                "Google Login Failed"
+              )
+            }
+            theme="filled_black"
+            shape="pill"
+            size="large"
+            text="signin_with"
+          />
+        </div>
 
         <p className="text-center text-slate-400 mt-6">
           Don't have an account?{" "}
           <Link
             to="/signup"
-            className="text-blue-500"
+            className="text-blue-500 hover:text-blue-400"
           >
             Signup
           </Link>

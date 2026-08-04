@@ -8,6 +8,10 @@ const api = axios.create({
   },
 });
 
+// ===================================
+// Request Interceptor
+// ===================================
+
 api.interceptors.request.use(
   (config) => {
     const token = localStorage.getItem("token");
@@ -21,16 +25,25 @@ api.interceptors.request.use(
   (error) => Promise.reject(error)
 );
 
+// ===================================
+// Response Interceptor
+// ===================================
+
 api.interceptors.response.use(
   (response) => response,
+
   (error) => {
-    if (error.response?.status === 401) {
+    const status = error.response?.status;
+
+    if (status === 401) {
+      console.warn("Unauthorized request (Guest Mode or Expired Token)");
+
+      // Token expire hua ho to remove kar do
       localStorage.removeItem("token");
       localStorage.removeItem("user");
 
-      if (window.location.pathname !== "/login") {
-        window.location.href = "/login";
-      }
+      // ❌ Redirect mat karo
+      // ChatGPT / Gemini ki tarah guest mode allow karo
     }
 
     return Promise.reject(error);

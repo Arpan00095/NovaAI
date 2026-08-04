@@ -1,25 +1,55 @@
-import { useEffect, useRef, useState } from "react";
+import {
+  useContext,
+  useEffect,
+  useRef,
+  useState,
+} from "react";
+
 import {
   Menu,
   Sparkles,
   ChevronDown,
   MoreHorizontal,
   Pin,
-  Pencil,
+  Archive,
   Download,
   Trash2,
   Share2,
+  FileText,
 } from "lucide-react";
+
+import { ConversationContext } from "../../../contexts/ConversationContext";
 
 const ChatHeader = ({
   setMobileOpen,
 }) => {
+  const {
+    activeConversationId,
+    conversations,
+    deleteChat,
+    pinChat,
+    shareChat,
+    archiveChat,
+    exportPdf,
+    exportMarkdown,
+  } = useContext(ConversationContext);
+
   const [menuOpen, setMenuOpen] =
     useState(false);
 
   const menuRef = useRef(null);
 
-  // Close menu when clicking outside
+  const activeConversation =
+    conversations.find(
+      (c) => c.id === activeConversationId
+    );
+
+  const isPinned =
+    activeConversation?.is_pinned || false;
+
+  const isArchived =
+    activeConversation?.is_archived || false;
+
   useEffect(() => {
     const handleClick = (e) => {
       if (
@@ -42,6 +72,20 @@ const ChatHeader = ({
       );
   }, []);
 
+  const handleDelete = async () => {
+    if (!activeConversationId) return;
+
+    const ok = window.confirm(
+      "Delete this conversation?"
+    );
+
+    if (!ok) return;
+
+    await deleteChat(activeConversationId);
+
+    setMenuOpen(false);
+  };
+
   return (
     <header
       className="
@@ -57,14 +101,11 @@ const ChatHeader = ({
         relative
       "
     >
-      {/* Left */}
-
       <div className="flex items-center gap-3">
-
-        {/* Mobile Sidebar */}
-
         <button
-          onClick={() => setMobileOpen(true)}
+          onClick={() =>
+            setMobileOpen(true)
+          }
           className="
             lg:hidden
             h-10
@@ -82,8 +123,6 @@ const ChatHeader = ({
             className="text-slate-300"
           />
         </button>
-
-        {/* Model */}
 
         <button
           className="
@@ -111,10 +150,7 @@ const ChatHeader = ({
             className="text-slate-400"
           />
         </button>
-
       </div>
-
-      {/* Right */}
 
       <div
         className="relative"
@@ -147,7 +183,7 @@ const ChatHeader = ({
               absolute
               right-0
               mt-2
-              w-56
+              w-60
               rounded-xl
               border
               border-slate-700
@@ -157,29 +193,146 @@ const ChatHeader = ({
               z-50
             "
           >
-            <button className="w-full px-4 py-3 flex items-center gap-3 hover:bg-slate-800 text-white">
+            <button
+              onClick={async () => {
+                if (!activeConversationId) return;
+
+                await pinChat(
+                  activeConversationId,
+                  !isPinned
+                );
+
+                setMenuOpen(false);
+              }}
+              className="
+                w-full
+                px-4
+                py-3
+                flex
+                items-center
+                gap-3
+                hover:bg-slate-800
+                text-white
+              "
+            >
               <Pin size={18} />
-              Pin Chat
+              {isPinned
+                ? "Unpin Chat"
+                : "Pin Chat"}
             </button>
 
-            <button className="w-full px-4 py-3 flex items-center gap-3 hover:bg-slate-800 text-white">
-              <Pencil size={18} />
-              Rename Chat
-            </button>
+            <button
+              onClick={async () => {
+                if (!activeConversationId) return;
 
-            <button className="w-full px-4 py-3 flex items-center gap-3 hover:bg-slate-800 text-white">
+                await shareChat(
+                  activeConversationId
+                );
+
+                setMenuOpen(false);
+              }}
+              className="
+                w-full
+                px-4
+                py-3
+                flex
+                items-center
+                gap-3
+                hover:bg-slate-800
+                text-white
+              "
+            >
               <Share2 size={18} />
               Share Chat
             </button>
 
-            <button className="w-full px-4 py-3 flex items-center gap-3 hover:bg-slate-800 text-white">
-              <Download size={18} />
-              Export Chat
+            <button
+              onClick={async () => {
+                if (!activeConversationId) return;
+
+                await archiveChat(
+                  activeConversationId,
+                  !isArchived
+                );
+
+                setMenuOpen(false);
+              }}
+              className="
+                   w-full
+                   px-4
+                   py-3
+                   flex
+                   items-center
+                    gap-3
+                    hover:bg-slate-800
+                    text-white
+                 "
+            >
+              <Archive size={18} />
+
+              {isArchived
+                ? "Restore Chat"
+                : "Archive Chat"}
             </button>
 
             <hr className="border-slate-700" />
 
-            <button className="w-full px-4 py-3 flex items-center gap-3 hover:bg-red-600 text-red-400 hover:text-white">
+            <button
+              onClick={() => {
+                exportPdf();
+                setMenuOpen(false);
+              }}
+              className="
+                w-full
+                px-4
+                py-3
+                flex
+                items-center
+                gap-3
+                hover:bg-slate-800
+                text-white
+              "
+            >
+              <Download size={18} />
+              Export PDF
+            </button>
+
+            <button
+              onClick={() => {
+                exportMarkdown();
+                setMenuOpen(false);
+              }}
+              className="
+                w-full
+                px-4
+                py-3
+                flex
+                items-center
+                gap-3
+                hover:bg-slate-800
+                text-white
+              "
+            >
+              <FileText size={18} />
+              Export Markdown
+            </button>
+
+            <hr className="border-slate-700" />
+
+            <button
+              onClick={handleDelete}
+              className="
+                w-full
+                px-4
+                py-3
+                flex
+                items-center
+                gap-3
+                hover:bg-red-600
+                text-red-400
+                hover:text-white
+              "
+            >
               <Trash2 size={18} />
               Delete Chat
             </button>

@@ -5,24 +5,22 @@ import {
   streamChat,
 } from "../controllers/ai.controller.js";
 
-import verifyToken from "../middleware/auth.middleware.js";
+import optionalAuth from "../middleware/optionalAuth.middleware.js";
 
 import { validateChatMessage } from "../middleware/validation.middleware.js";
 
 const router = Router();
 
-// Normal Chat
 router.post(
   "/chat",
-  verifyToken,
+  optionalAuth,
   validateChatMessage,
   chat
 );
 
-// Streaming Chat
 router.post(
   "/chat/stream",
-  verifyToken,
+  optionalAuth,
   validateChatMessage,
   streamChat
 );

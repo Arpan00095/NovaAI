@@ -1,10 +1,20 @@
-import { useState } from "react";
+import { useContext, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 
-import { signupUser } from "../services/auth.service";
+import { GoogleLogin } from "@react-oauth/google";
+import toast from "react-hot-toast";
+
+import { AuthContext } from "../contexts/AuthContext";
+
+import {
+  signupUser,
+  googleLogin,
+} from "../services/auth.service";
 
 const Signup = () => {
   const navigate = useNavigate();
+
+  const { login } = useContext(AuthContext);
 
   const [loading, setLoading] = useState(false);
 
@@ -21,6 +31,10 @@ const Signup = () => {
     }));
   };
 
+  // ==========================
+  // Email Signup
+  // ==========================
+
   const handleSubmit = async (e) => {
     e.preventDefault();
 
@@ -29,17 +43,49 @@ const Signup = () => {
 
       await signupUser(form);
 
-      alert("Account created successfully 🚀");
+      toast.success(
+        "Account created successfully 🚀"
+      );
 
       navigate("/login");
 
     } catch (error) {
-      alert(
+      toast.error(
         error.response?.data?.message ||
         "Signup failed"
       );
     } finally {
       setLoading(false);
+    }
+  };
+
+  // ==========================
+  // Google Signup / Login
+  // ==========================
+
+  const handleGoogleSuccess = async (
+    credentialResponse
+  ) => {
+    try {
+      const data = await googleLogin(
+        credentialResponse.credential
+      );
+
+      login(data.user, data.token);
+
+      toast.success(
+        "Google Signup Successful 🚀"
+      );
+
+      navigate("/");
+
+    } catch (error) {
+      console.error(error);
+
+      toast.error(
+        error.response?.data?.message ||
+        "Google Signup Failed"
+      );
     }
   };
 
@@ -87,16 +133,47 @@ const Signup = () => {
 
         <button
           disabled={loading}
-          className="w-full py-3 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-semibold"
+          className="w-full py-3 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-semibold disabled:opacity-50"
         >
-          {loading ? "Creating..." : "Create Account"}
+          {loading
+            ? "Creating..."
+            : "Create Account"}
         </button>
+
+        {/* Divider */}
+
+        <div className="my-6 flex items-center gap-3">
+          <div className="flex-1 h-px bg-slate-700" />
+
+          <span className="text-slate-500 text-sm">
+            OR
+          </span>
+
+          <div className="flex-1 h-px bg-slate-700" />
+        </div>
+
+        {/* Google Signup */}
+
+        <div className="flex justify-center">
+          <GoogleLogin
+            onSuccess={handleGoogleSuccess}
+            onError={() =>
+              toast.error(
+                "Google Signup Failed"
+              )
+            }
+            theme="filled_black"
+            shape="pill"
+            size="large"
+            text="signup_with"
+          />
+        </div>
 
         <p className="text-center text-slate-400 mt-6">
           Already have an account?{" "}
           <Link
             to="/login"
-            className="text-blue-500"
+            className="text-blue-500 hover:text-blue-400"
           >
             Login
           </Link>

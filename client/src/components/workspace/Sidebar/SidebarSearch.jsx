@@ -1,6 +1,9 @@
 import { Search } from "lucide-react";
 
-const SidebarSearch = () => {
+const SidebarSearch = ({
+  search,
+  setSearch,
+}) => {
   return (
     <div className="px-3 py-2">
       <div
@@ -21,6 +24,10 @@ const SidebarSearch = () => {
 
         <input
           type="text"
+          value={search}
+          onChange={(e) =>
+            setSearch(e.target.value)
+          }
           placeholder="Search chats..."
           className="
             flex-1

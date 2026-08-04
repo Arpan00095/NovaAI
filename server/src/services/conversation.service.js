@@ -15,8 +15,6 @@ export const createConversation = async (
       .select()
       .single();
 
-    console.log("Supabase Data:", data);
-    console.log("Supabase Error:", error);
 
     if (error) {
       throw error;
@@ -82,6 +80,9 @@ export const getUserConversations = async (
     .from("conversations")
     .select("*")
     .eq("user_id", userId)
+    .order("is_pinned", {
+      ascending: false,
+    })
     .order("updated_at", {
       ascending: false,
     });
@@ -187,3 +188,121 @@ export const touchConversation = async (
   return true;
 };
 
+// Toggle Pin Conversation
+export const togglePinConversation = async (
+  conversationId,
+  isPinned
+) => {
+  const { data, error } = await supabase
+    .from("conversations")
+    .update({
+      is_pinned: isPinned,
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", conversationId)
+    .select()
+    .single();
+
+  if (error) {
+    throw new Error(error.message);
+  }
+
+  return data;
+};
+
+
+  // ==========================
+// Archive / Restore Conversation
+// ==========================
+
+export const toggleArchiveConversation = async (
+  conversationId,
+  isArchived
+) => {
+  const { data, error } = await supabase
+    .from("conversations")
+    .update({
+      is_archived: isArchived,
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", conversationId)
+    .select()
+    .single();
+
+  if (error) {
+    throw new Error(error.message);
+  }
+
+  return data;
+};
+
+  // ======================================
+// Create Share Token
+// ======================================
+
+export const createShareToken = async (
+  conversationId,
+  shareToken
+) => {
+  const { data, error } = await supabase
+    .from("conversations")
+    .update({
+      share_token: shareToken,
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", conversationId)
+    .select()
+    .single();
+
+  if (error) {
+    throw new Error(error.message);
+  }
+
+  return data;
+};
+
+// ======================================
+// Get Shared Conversation
+// ======================================
+
+export const getConversationByShareToken =
+  async (shareToken) => {
+    // Get Conversation
+    const {
+      data: conversation,
+      error,
+    } = await supabase
+      .from("conversations")
+      .select("*")
+      .eq("share_token", shareToken)
+      .single();
+
+    if (error || !conversation) {
+      throw new Error(
+        "Shared conversation not found"
+      );
+    }
+
+    // Get Messages
+    const {
+      data: messages,
+      error: msgError,
+    } = await supabase
+      .from("conversation_messages")
+      .select("*")
+      .eq(
+        "conversation_id",
+        conversation.id
+      )
+      .order("created_at", {
+        ascending: true,
+      });
+
+    if (msgError) {
+      throw new Error(msgError.message);
+    }
+
+    conversation.messages = messages;
+
+    return conversation;
+  };

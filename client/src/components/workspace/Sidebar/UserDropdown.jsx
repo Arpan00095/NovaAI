@@ -1,12 +1,23 @@
+import { useContext } from "react";
+import { Link } from "react-router-dom";
+
 import {
   User,
   Settings,
   HelpCircle,
   LogOut,
   Palette,
+  LogIn,
+  UserPlus,
 } from "lucide-react";
 
+import { AuthContext } from "../../../contexts/AuthContext";
+
 const UserDropdown = ({ onLogout }) => {
+  const { user, token } = useContext(AuthContext);
+
+  const isGuest = !token || !user;
+
   return (
     <div
       className="
@@ -24,110 +35,178 @@ const UserDropdown = ({ onLogout }) => {
 
       <div className="px-4 py-3 border-b border-slate-700">
         <p className="text-sm font-semibold text-white">
-          Account
+          {isGuest ? "Welcome" : "Account"}
         </p>
 
         <p className="text-xs text-slate-400">
-          Manage your NovaAI account
+          {isGuest
+            ? "Login to save chats and access all features"
+            : "Manage your NovaAI account"}
         </p>
       </div>
 
-      {/* Menu */}
+      {isGuest ? (
+        <>
+          {/* Login */}
 
-      <button
-        className="
-          w-full
-          flex
-          items-center
-          gap-3
-          px-4
-          py-3
-          text-slate-200
-          hover:bg-slate-800
-          transition
-        "
-      >
-        <User size={18} />
+          <Link
+            to="/login"
+            className="
+              flex
+              items-center
+              gap-3
+              px-4
+              py-3
+              text-slate-200
+              hover:bg-slate-800
+              transition
+            "
+          >
+            <LogIn size={18} />
+            <span>Login</span>
+          </Link>
 
-        <span>Profile</span>
-      </button>
+          {/* Signup */}
 
-      <button
-        className="
-          w-full
-          flex
-          items-center
-          gap-3
-          px-4
-          py-3
-          text-slate-200
-          hover:bg-slate-800
-          transition
-        "
-      >
-        <Settings size={18} />
+          <Link
+            to="/signup"
+            className="
+              flex
+              items-center
+              gap-3
+              px-4
+              py-3
+              text-slate-200
+              hover:bg-slate-800
+              transition
+            "
+          >
+            <UserPlus size={18} />
+            <span>Create Account</span>
+          </Link>
 
-        <span>Settings</span>
-      </button>
+          <div className="border-t border-slate-700" />
 
-      <button
-        className="
-          w-full
-          flex
-          items-center
-          gap-3
-          px-4
-          py-3
-          text-slate-200
-          hover:bg-slate-800
-          transition
-        "
-      >
-        <Palette size={18} />
+          {/* About */}
 
-        <span>Appearance</span>
-      </button>
+          <Link
+            to="/about"
+            className="
+              flex
+              items-center
+              gap-3
+              px-4
+              py-3
+              text-slate-200
+              hover:bg-slate-800
+              transition
+            "
+          >
+            <HelpCircle size={18} />
+            <span>About</span>
+          </Link>
+        </>
+      ) : (
+        <>
+          {/* Profile */}
 
-      <button
-        className="
-          w-full
-          flex
-          items-center
-          gap-3
-          px-4
-          py-3
-          text-slate-200
-          hover:bg-slate-800
-          transition
-        "
-      >
-        <HelpCircle size={18} />
+          <Link
+            to="/profile"
+            className="
+              flex
+              items-center
+              gap-3
+              px-4
+              py-3
+              text-slate-200
+              hover:bg-slate-800
+              transition
+            "
+          >
+            <User size={18} />
+            <span>Profile</span>
+          </Link>
 
-        <span>Help</span>
-      </button>
+          {/* Settings */}
 
-      <div className="border-t border-slate-700" />
+          <Link
+            to="/settings"
+            className="
+              flex
+              items-center
+              gap-3
+              px-4
+              py-3
+              text-slate-200
+              hover:bg-slate-800
+              transition
+            "
+          >
+            <Settings size={18} />
+            <span>Settings</span>
+          </Link>
 
-      {/* Logout */}
+          {/* Appearance */}
 
-      <button
-        onClick={onLogout}
-        className="
-          w-full
-          flex
-          items-center
-          gap-3
-          px-4
-          py-3
-          text-red-400
-          hover:bg-red-500/10
-          transition
-        "
-      >
-        <LogOut size={18} />
+          <Link
+            to="/appearance"
+            className="
+              flex
+              items-center
+              gap-3
+              px-4
+              py-3
+              text-slate-200
+              hover:bg-slate-800
+              transition
+            "
+          >
+            <Palette size={18} />
+            <span>Appearance</span>
+          </Link>
 
-        <span>Logout</span>
-      </button>
+          {/* About */}
+
+          <Link
+            to="/about"
+            className="
+              flex
+              items-center
+              gap-3
+              px-4
+              py-3
+              text-slate-200
+              hover:bg-slate-800
+              transition
+            "
+          >
+            <HelpCircle size={18} />
+            <span>About</span>
+          </Link>
+
+          <div className="border-t border-slate-700" />
+
+          {/* Logout */}
+
+          <button
+            onClick={onLogout}
+            className="
+              w-full
+              flex
+              items-center
+              gap-3
+              px-4
+              py-3
+              text-red-400
+              hover:bg-red-500/10
+              transition
+            "
+          >
+            <LogOut size={18} />
+            <span>Logout</span>
+          </button>
+        </>
+      )}
     </div>
   );
 };
