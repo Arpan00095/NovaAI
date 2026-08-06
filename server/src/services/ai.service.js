@@ -6,7 +6,6 @@ import { SYSTEM_PROMPTS } from "../prompts/systemPrompts.js";
 
 const groq = new Groq({ apiKey: env.GROQ_API_KEY || process.env.GROQ_API_KEY });
 
-// Groq official primary models
 const PRIMARY_TEXT_MODEL = "llama-3.3-70b-versatile";
 const PRIMARY_VISION_MODEL = "qwen/qwen3.6-27b";
 
@@ -14,29 +13,6 @@ export const generateConversationTitle = async (message) => {
   if (!message || message.trim() === "") return "New Conversation";
   const cleanMessage = message.trim();
   return cleanMessage.length > 30 ? cleanMessage.substring(0, 30) + "..." : cleanMessage;
-};
-
-// Helper function to dynamically check active Groq vision models
-const getActiveVisionModel = async () => {
-  try {
-    const modelsList = await groq.models.list();
-    const activeModels = modelsList.data.map((m) => m.id);
-
-    // 1. Check official current vision model
-    if (activeModels.includes(PRIMARY_VISION_MODEL)) {
-      return PRIMARY_VISION_MODEL;
-    }
-
-    // 2. Fallback: Find any model containing 'qwen', 'vision' or 'llama-3.2'
-    const foundVisionModel = activeModels.find(
-      (id) => id.includes("qwen") || id.includes("vision")
-    );
-
-    return foundVisionModel || PRIMARY_VISION_MODEL;
-  } catch (err) {
-    console.warn("Could not fetch Groq models list, defaulting to primary vision model:", err.message);
-    return PRIMARY_VISION_MODEL;
-  }
 };
 
 export const chatWithAIStream = async (
@@ -55,7 +31,7 @@ export const chatWithAIStream = async (
       ? `\nKnown facts about this user:\n${memories.map((m) => `- ${m.memory_key}: ${m.memory_value}`).join("\n")}\n`
       : "";
 
-  const fullSystemPrompt = `${systemPrompt}\n${memoryPrompt}`;
+  const fullSystemPrompt = `${systemPrompt}\n${memoryPrompt}\n\nIMPORTANT: Provide direct response only. Do NOT include internal reasoning, thinking steps, or <think> tags.`;
 
   let selectedModel = PRIMARY_TEXT_MODEL;
   let groqMessages = [
@@ -66,9 +42,10 @@ export const chatWithAIStream = async (
     })),
   ];
 
+  // If Image/File is attached, switch to vision model
   if (file) {
-    selectedModel = await getActiveVisionModel();
-    console.log(`[AI Engine] Image detected -> Dynamically selected Groq Vision Model: (${selectedModel})`);
+    selectedModel = PRIMARY_VISION_MODEL;
+    console.log(`[AI Engine] Image detected -> Switching to Vision Model: ${selectedModel}`);
 
     const imageUrl = file.startsWith("data:")
       ? file
@@ -94,12 +71,51 @@ export const chatWithAIStream = async (
       model: selectedModel,
       stream: true,
       max_tokens: 2000,
+      temperature: 0.7,
     });
 
     async function* transformStream() {
+      let isThinking = false;
+      let buffer = "";
+
       for await (const chunk of groqStream) {
         const textChunk = chunk.choices[0]?.delta?.content || "";
-        if (textChunk) yield { text: textChunk };
+        if (!textChunk) continue;
+
+        buffer += textChunk;
+
+        // Strip <think>...</think> blocks completely
+        while (buffer.length > 0) {
+          if (!isThinking) {
+            const thinkStart = buffer.indexOf("<think>");
+            if (thinkStart !== -1) {
+              const textBefore = buffer.slice(0, thinkStart);
+              if (textBefore) yield { text: textBefore };
+              buffer = buffer.slice(thinkStart + 7);
+              isThinking = true;
+            } else {
+              // Yield buffer safely if no opening tag is forming
+              if (!"<think>".startsWith(buffer)) {
+                yield { text: buffer };
+                buffer = "";
+              }
+              break;
+            }
+          } else {
+            const thinkEnd = buffer.indexOf("</think>");
+            if (thinkEnd !== -1) {
+              buffer = buffer.slice(thinkEnd + 8);
+              isThinking = false;
+            } else {
+              buffer = "";
+              break;
+            }
+          }
+        }
+      }
+
+      if (!isThinking && buffer && !"<think>".startsWith(buffer)) {
+        yield { text: buffer };
       }
     }
 
