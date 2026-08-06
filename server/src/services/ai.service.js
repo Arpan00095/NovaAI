@@ -109,7 +109,7 @@ export const generateConversationTitle = async (message) => {
     const textPrompt = message || "Image analysis conversation";
 
     const response = await ai.models.generateContent({
-      model: "gemini-flash-latest",
+      model: "gemini-1.5-flash",
       contents: `
 Generate a very short conversation title.
 
@@ -161,7 +161,7 @@ export const chatWithAI = async (
   );
 
   const response = await ai.models.generateContent({
-    model: "gemini-flash-latest",
+    model: "gemini-1.5-flash",
     contents: conversation,
   });
 
@@ -193,7 +193,7 @@ export const chatWithAIStream = async (
   );
 
   const stream = await ai.models.generateContentStream({
-    model: "gemini-flash-latest",
+    model: "gemini-1.5-flash",
     contents: conversation,
   });
 
