@@ -9,25 +9,24 @@ const SendButton = ({
       type="button"
       onClick={onClick}
       disabled={disabled}
-      className="
-        h-11
-        w-11
-        rounded-full
-        bg-blue-600
-        hover:bg-blue-700
-        disabled:opacity-50
-        disabled:cursor-not-allowed
+      title="Send message"
+      className={`
         flex
+        h-9
+        w-9
         items-center
         justify-center
-        transition
-      "
-      title="Send Message"
+        rounded-full
+        transition-all
+        duration-200
+        ${
+          disabled
+            ? "bg-[#3a3a3a] text-slate-500 cursor-not-allowed"
+            : "bg-white text-black hover:scale-105 active:scale-95"
+        }
+      `}
     >
-      <ArrowUp
-        size={18}
-        className="text-white"
-      />
+      <ArrowUp size={18} strokeWidth={2.5} />
     </button>
   );
 };

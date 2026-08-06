@@ -13,36 +13,47 @@ const VoiceButton = ({
       title={
         supported
           ? listening
-            ? "Stop Recording"
-            : "Start Voice Input"
-          : "Speech Recognition is not supported"
+            ? "Stop recording"
+            : "Voice input"
+          : "Speech recognition not supported"
       }
       className={`
         relative
-        h-10
-        w-10
-        rounded-xl
         flex
+        h-9
+        w-9
         items-center
         justify-center
+        rounded-full
         transition-all
-        duration-300
-        disabled:opacity-50
+        duration-200
+        disabled:opacity-40
         disabled:cursor-not-allowed
         ${
           listening
-            ? "bg-red-600 text-white shadow-lg shadow-red-500/30"
-            : "hover:bg-slate-700 text-slate-400"
+            ? "bg-red-500/15 text-red-400"
+            : "text-slate-400 hover:bg-[#404040] hover:text-white"
         }
       `}
     >
+      {listening && (
+        <span
+          className="
+            absolute
+            h-2
+            w-2
+            rounded-full
+            bg-red-500
+            top-2
+            right-2
+          "
+        />
+      )}
+
       {listening ? (
-        <>
-          <span className="absolute inset-0 rounded-xl animate-ping bg-red-500 opacity-20"></span>
-          <MicOff size={20} className="relative z-10" />
-        </>
+        <MicOff size={18} />
       ) : (
-        <Mic size={20} />
+        <Mic size={18} />
       )}
     </button>
   );

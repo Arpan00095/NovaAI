@@ -10,9 +10,22 @@ import conversationRoutes from "./routes/conversation.routes.js";
 
 const app = express();
 
+const allowedOrigins = [
+  "http://localhost:5173",
+  "https://novaai-40ji.onrender.com",
+];
+
 app.use(
   cors({
-    origin: env.CLIENT_URL,
+    origin(origin, callback) {
+      if (!origin || allowedOrigins.includes(origin)) {
+        return callback(null, true);
+      }
+
+      return callback(
+        new Error(`Origin ${origin} not allowed by CORS`)
+      );
+    },
     credentials: true,
   })
 );
