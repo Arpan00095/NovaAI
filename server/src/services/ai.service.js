@@ -10,6 +10,8 @@ const ai = new GoogleGenAI({
   apiKey: env.GEMINI_API_KEY,
 });
 
+const MODEL_NAME = "gemini-2.5-flash";
+
 // -----------------------------
 // Build Conversation (Multimodal Supported)
 // -----------------------------
@@ -57,10 +59,8 @@ Do not mention these memories unless the user asks or they naturally help answer
     ],
   }));
 
-  // Current User Request Parts (Text + Optional File/Image)
   const currentParts = [];
 
-  // Agar user ne Image/File upload kiya hai
   if (file) {
     const base64Data = file.includes(",") ? file.split(",")[1] : file;
     currentParts.push({
@@ -71,7 +71,6 @@ Do not mention these memories unless the user asks or they naturally help answer
     });
   }
 
-  // Text message add karein
   if (message) {
     currentParts.push({
       text: message,
@@ -109,7 +108,7 @@ export const generateConversationTitle = async (message) => {
     const textPrompt = message || "Image analysis conversation";
 
     const response = await ai.models.generateContent({
-      model: "gemini-1.5-flash",
+      model: MODEL_NAME,
       contents: `
 Generate a very short conversation title.
 
@@ -161,7 +160,7 @@ export const chatWithAI = async (
   );
 
   const response = await ai.models.generateContent({
-    model: "gemini-1.5-flash",
+    model: MODEL_NAME,
     contents: conversation,
   });
 
@@ -193,7 +192,7 @@ export const chatWithAIStream = async (
   );
 
   const stream = await ai.models.generateContentStream({
-    model: "gemini-1.5-flash",
+    model: MODEL_NAME,
     contents: conversation,
   });
 
