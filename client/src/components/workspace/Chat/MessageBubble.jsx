@@ -8,6 +8,9 @@ const MessageBubble = ({ message }) => {
   const isUser = message.role === "user";
   const [copied, setCopied] = useState(false);
 
+  // Database se `image_url` milta hai aur Local State se `image`
+  const imageUrl = message.image || message.image_url;
+
   const handleCopy = async () => {
     if (!message.content) return;
     await navigator.clipboard.writeText(message.content);
@@ -19,23 +22,25 @@ const MessageBubble = ({ message }) => {
 
   return (
     <div
-      className={`group flex ${isUser ? "justify-end" : "justify-start"
-        }`}
+      className={`group flex ${
+        isUser ? "justify-end" : "justify-start"
+      }`}
     >
       <div
-        className={`max-w-[90%] sm:max-w-[75%] ${!isUser ? "text-slate-100" : ""
-          }`}
+        className={`max-w-[90%] sm:max-w-[75%] ${
+          !isUser ? "text-slate-100" : ""
+        }`}
       >
         {/* ======================= */}
         {/* USER MESSAGE UI         */}
         {/* ======================= */}
         {isUser && (
           <div className="flex flex-col items-end gap-1.5">
-            {/* ChatGPT Style Small Image Thumbnail */}
-            {message.image && (
+            {/* ChatGPT Style Small Image Thumbnail (Handles both local image & DB image_url) */}
+            {imageUrl && (
               <div className="relative overflow-hidden rounded-2xl border border-[#3b3b3b] shadow-sm max-w-[220px]">
                 <img
-                  src={message.image}
+                  src={imageUrl}
                   alt="User upload"
                   className="w-full h-auto object-cover"
                 />
@@ -50,16 +55,16 @@ const MessageBubble = ({ message }) => {
             )}
           </div>
         )}
+
         {/* ======================= */}
         {/* ASSISTANT MESSAGE UI    */}
         {/* ======================= */}
         {!isUser && (
           <div className="flex flex-col items-start gap-2">
-
             {/* AI Generated Image (if any) */}
-            {message.image && (
+            {imageUrl && (
               <img
-                src={message.image}
+                src={imageUrl}
                 alt="Generated"
                 className="
                   max-h-80
