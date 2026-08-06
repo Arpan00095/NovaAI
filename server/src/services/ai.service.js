@@ -4,7 +4,6 @@ import { detectIntent } from "./intent.service.js";
 import { aiToolRouter } from "../router/ai.tool.router.js";
 import { SYSTEM_PROMPTS } from "../prompts/systemPrompts.js";
 
-// Clean API Keys Array
 const rawKeys = [
   env.GEMINI_API_KEY_1,
   env.GEMINI_API_KEY_2,
@@ -18,7 +17,9 @@ const apiKeys = [...new Set(rawKeys)].filter(
 );
 
 let currentKeyIndex = 0;
-const MODEL_NAME = "gemini-2.0-flash";
+
+// High quota lite model to bypass daily flash limits
+const MODEL_NAME = "gemini-2.0-flash-lite";
 
 const getAIClient = () => {
   if (apiKeys.length === 0) {
@@ -31,11 +32,12 @@ const getAIClient = () => {
 const rotateKey = () => {
   if (apiKeys.length > 1) {
     currentKeyIndex = (currentKeyIndex + 1) % apiKeys.length;
-    console.warn(`[Gemini API] Switched to Key Index #${(currentKeyIndex % apiKeys.length) + 1}`);
+    console.warn(`[Gemini API] Rotated to Key Index #${(currentKeyIndex % apiKeys.length) + 1}`);
   }
 };
 
-const executeWithRetry = async (fn, retries = apiKeys.length || 3, delay = 2000) => {
+// Retry with 3 seconds delay to respect Google rate limits
+const executeWithRetry = async (fn, retries = apiKeys.length || 3, delay = 3000) => {
   try {
     return await fn(getAIClient());
   } catch (error) {
@@ -45,10 +47,10 @@ const executeWithRetry = async (fn, retries = apiKeys.length || 3, delay = 2000)
       error.message?.includes("RESOURCE_EXHAUSTED");
 
     if (isRateLimit && retries > 0) {
-      console.warn(`[Gemini API 429] Rotating key and retrying... (${retries} attempts left)`);
+      console.warn(`[Gemini API 429] Waiting ${delay / 1000}s before trying next key... (${retries} retries left)`);
       rotateKey();
       await new Promise((res) => setTimeout(res, delay));
-      return executeWithRetry(fn, retries - 1, delay);
+      return executeWithRetry(fn, retries - 1, delay * 1.5);
     }
     throw error;
   }
@@ -104,7 +106,6 @@ const buildConversation = (
   ];
 };
 
-// FAST TITLE GENERATOR (No extra Gemini API call = Zero extra load!)
 export const generateConversationTitle = async (message) => {
   if (!message || message.trim() === "") return "New Conversation";
   const cleanMessage = message.trim();
@@ -113,7 +114,6 @@ export const generateConversationTitle = async (message) => {
     : cleanMessage;
 };
 
-// Normal Chat
 export const chatWithAI = async (
   message,
   history = [],
@@ -134,7 +134,6 @@ export const chatWithAI = async (
   return { intent, text: response.text };
 };
 
-// Streaming Chat
 export const chatWithAIStream = async (
   message,
   history = [],
