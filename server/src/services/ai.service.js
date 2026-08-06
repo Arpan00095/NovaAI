@@ -4,19 +4,22 @@ import { detectIntent } from "./intent.service.js";
 import { aiToolRouter } from "../router/ai.tool.router.js";
 import { SYSTEM_PROMPTS } from "../prompts/systemPrompts.js";
 
-// Initialize Groq Client
 const groq = new Groq({ apiKey: env.GROQ_API_KEY || process.env.GROQ_API_KEY });
-const MODEL_NAME = "llama-3.3-70b-versatile";
 
-// Zero API Hit Title Generator
 export const generateConversationTitle = async (message) => {
   if (!message || message.trim() === "") return "New Conversation";
   const cleanMessage = message.trim();
   return cleanMessage.length > 30 ? cleanMessage.substring(0, 30) + "..." : cleanMessage;
 };
 
-// Builder for Groq Messages format
-const buildGroqMessages = (message, history = [], memories = [], intent) => {
+export const chatWithAIStream = async (
+  message,
+  history = [],
+  memories = [],
+  file = null,
+  fileType = null
+) => {
+  const intent = detectIntent(message || "");
   const engine = aiToolRouter(intent);
   const systemPrompt = engine?.prompt || SYSTEM_PROMPTS.general;
 
@@ -27,7 +30,9 @@ const buildGroqMessages = (message, history = [], memories = [], intent) => {
 
   const fullSystemPrompt = `${systemPrompt}\n${memoryPrompt}`;
 
-  const groqMessages = [
+  // Select Model & Format Messages based on Image Presence
+  let selectedModel = "llama-3.3-70b-versatile";
+  let groqMessages = [
     { role: "system", content: fullSystemPrompt },
     ...history.map((m) => ({
       role: m.role === "assistant" ? "assistant" : "user",
@@ -35,83 +40,54 @@ const buildGroqMessages = (message, history = [], memories = [], intent) => {
     })),
   ];
 
-  if (message) {
-    groqMessages.push({ role: "user", content: message });
-  }
-
-  return groqMessages;
-};
-
-// Streaming Chat (Groq)
-export const chatWithAIStream = async (
-  message,
-  history = [],
-  memories = [],
-  file = null,
-  fileType = null
-) => {
-  // Groq abhi image natively waise support nahi karta jaise Gemini, 
-  // isliye agar file aati hai toh abhi ke liye text ko hi prefer karenge.
   if (file) {
-    console.warn("Groq currently does not support Gemini-style image inline data natively. Processing text only.");
-  }
+    // Switch to Vision Model when Image is present
+    selectedModel = "llama-3.2-11b-vision-preview";
+    
+    // Ensure file format has correct base64 data URL
+    const imageUrl = file.startsWith("data:") ? file : `data:${fileType || "image/png"};base64,${file}`;
 
-  const intent = detectIntent(message || "");
-  const messages = buildGroqMessages(message, history, memories, intent);
+    groqMessages.push({
+      role: "user",
+      content: [
+        { type: "text", text: message || "Analyze this image in detail." },
+        {
+          type: "image_url",
+          image_url: { url: imageUrl },
+        },
+      ],
+    });
+  } else {
+    groqMessages.push({ role: "user", content: message || "" });
+  }
 
   try {
     const groqStream = await groq.chat.completions.create({
-      messages: messages,
-      model: MODEL_NAME,
+      messages: groqMessages,
+      model: selectedModel,
       stream: true,
-      temperature: 0.7,
       max_tokens: 2000,
     });
 
-    // Adapter for controller to keep format same as Gemini stream
     async function* transformStream() {
       for await (const chunk of groqStream) {
         const textChunk = chunk.choices[0]?.delta?.content || "";
-        if (textChunk) {
-          yield { text: textChunk };
-        }
+        if (textChunk) yield { text: textChunk };
       }
     }
 
     return { intent, stream: transformStream() };
   } catch (error) {
-    console.error("Groq API Error:", error.message);
+    console.error("Groq Vision Stream Error:", error.message);
     throw error;
   }
 };
 
-// Normal Chat (Groq)
-export const chatWithAI = async (
-  message,
-  history = [],
-  memories = [],
-  file = null,
-  fileType = null
-) => {
-  if (file) {
-    console.warn("Groq currently does not support Gemini-style image inline data natively. Processing text only.");
+export const chatWithAI = async (message, history = [], memories = [], file = null, fileType = null) => {
+  const result = await chatWithAIStream(message, history, memories, file, fileType);
+  let text = "";
+  for await (const chunk of result.stream) {
+    text += chunk.text || "";
   }
-
-  const intent = detectIntent(message || "");
-  const messages = buildGroqMessages(message, history, memories, intent);
-
-  try {
-    const response = await groq.chat.completions.create({
-      messages: messages,
-      model: MODEL_NAME,
-      stream: false,
-      temperature: 0.7,
-      max_tokens: 2000,
-    });
-
-    return { intent, text: response.choices[0]?.message?.content || "" };
-  } catch (error) {
-    console.error("Groq API Error:", error.message);
-    throw error;
-  }
+  return { intent: result.intent, text };
 };
