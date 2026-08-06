@@ -11,18 +11,9 @@ const env = {
   JWT_SECRET:
     process.env.JWT_SECRET || "change_this_in_production",
 
-  // Gemini API Keys Pool (Key Rotation ke liye)
-  GEMINI_API_KEY_1:
-    process.env.GEMINI_API_KEY_1 || process.env.GEMINI_API_KEY || "",
-
-  GEMINI_API_KEY_2:
-    process.env.GEMINI_API_KEY_2 || "",
-
-  GEMINI_API_KEY_3:
-    process.env.GEMINI_API_KEY_3 || "",
-
-  GEMINI_API_KEY_4:
-    process.env.GEMINI_API_KEY_4 || "",
+  // Groq API Key (Primary Provider)
+  GROQ_API_KEY:
+    process.env.GROQ_API_KEY || "",
 
   SUPABASE_URL:
     process.env.SUPABASE_URL || "",

@@ -1,69 +1,22 @@
-import { GoogleGenAI } from "@google/genai";
+import Groq from "groq-sdk";
 import env from "../config/env.js";
 import { detectIntent } from "./intent.service.js";
 import { aiToolRouter } from "../router/ai.tool.router.js";
 import { SYSTEM_PROMPTS } from "../prompts/systemPrompts.js";
 
-const rawKeys = [
-  env.GEMINI_API_KEY_1,
-  env.GEMINI_API_KEY_2,
-  env.GEMINI_API_KEY_3,
-  env.GEMINI_API_KEY_4,
-  process.env.GEMINI_API_KEY,
-];
+// Initialize Groq Client
+const groq = new Groq({ apiKey: env.GROQ_API_KEY || process.env.GROQ_API_KEY });
+const MODEL_NAME = "llama-3.3-70b-versatile";
 
-const apiKeys = [...new Set(rawKeys)].filter(
-  (key) => key && typeof key === "string" && key.trim().length > 10
-);
-
-let currentKeyIndex = 0;
-
-// High quota lite model to bypass daily flash limits
-const MODEL_NAME = "gemini-2.0-flash-lite";
-
-const getAIClient = () => {
-  if (apiKeys.length === 0) {
-    throw new Error("No valid Gemini API key found!");
-  }
-  const activeKey = apiKeys[currentKeyIndex % apiKeys.length];
-  return new GoogleGenAI({ apiKey: activeKey });
+// Zero API Hit Title Generator
+export const generateConversationTitle = async (message) => {
+  if (!message || message.trim() === "") return "New Conversation";
+  const cleanMessage = message.trim();
+  return cleanMessage.length > 30 ? cleanMessage.substring(0, 30) + "..." : cleanMessage;
 };
 
-const rotateKey = () => {
-  if (apiKeys.length > 1) {
-    currentKeyIndex = (currentKeyIndex + 1) % apiKeys.length;
-    console.warn(`[Gemini API] Rotated to Key Index #${(currentKeyIndex % apiKeys.length) + 1}`);
-  }
-};
-
-// Retry with 3 seconds delay to respect Google rate limits
-const executeWithRetry = async (fn, retries = apiKeys.length || 3, delay = 3000) => {
-  try {
-    return await fn(getAIClient());
-  } catch (error) {
-    const isRateLimit =
-      error.status === 429 ||
-      error.message?.includes("429") ||
-      error.message?.includes("RESOURCE_EXHAUSTED");
-
-    if (isRateLimit && retries > 0) {
-      console.warn(`[Gemini API 429] Waiting ${delay / 1000}s before trying next key... (${retries} retries left)`);
-      rotateKey();
-      await new Promise((res) => setTimeout(res, delay));
-      return executeWithRetry(fn, retries - 1, delay * 1.5);
-    }
-    throw error;
-  }
-};
-
-const buildConversation = (
-  message,
-  history = [],
-  memories = [],
-  intent,
-  file = null,
-  fileType = null
-) => {
+// Builder for Groq Messages format
+const buildGroqMessages = (message, history = [], memories = [], intent) => {
   const engine = aiToolRouter(intent);
   const systemPrompt = engine?.prompt || SYSTEM_PROMPTS.general;
 
@@ -72,68 +25,24 @@ const buildConversation = (
       ? `\nKnown facts about this user:\n${memories.map((m) => `- ${m.memory_key}: ${m.memory_value}`).join("\n")}\n`
       : "";
 
-  const geminiHistory = history.map((msg) => ({
-    role: msg.role === "assistant" ? "model" : "user",
-    parts: [{ text: msg.content || "" }],
-  }));
+  const fullSystemPrompt = `${systemPrompt}\n${memoryPrompt}`;
 
-  const currentParts = [];
-
-  if (file) {
-    const base64Data = file.includes(",") ? file.split(",")[1] : file;
-    currentParts.push({
-      inlineData: {
-        data: base64Data,
-        mimeType: fileType || "image/png",
-      },
-    });
-  }
+  const groqMessages = [
+    { role: "system", content: fullSystemPrompt },
+    ...history.map((m) => ({
+      role: m.role === "assistant" ? "assistant" : "user",
+      content: m.content || "",
+    })),
+  ];
 
   if (message) {
-    currentParts.push({ text: message });
+    groqMessages.push({ role: "user", content: message });
   }
 
-  return [
-    {
-      role: "user",
-      parts: [{ text: `\n${systemPrompt}\n\n${memoryPrompt}\n` }],
-    },
-    ...geminiHistory,
-    {
-      role: "user",
-      parts: currentParts,
-    },
-  ];
+  return groqMessages;
 };
 
-export const generateConversationTitle = async (message) => {
-  if (!message || message.trim() === "") return "New Conversation";
-  const cleanMessage = message.trim();
-  return cleanMessage.length > 30 
-    ? cleanMessage.substring(0, 30) + "..." 
-    : cleanMessage;
-};
-
-export const chatWithAI = async (
-  message,
-  history = [],
-  memories = [],
-  file = null,
-  fileType = null
-) => {
-  const intent = detectIntent(message || "");
-  const conversation = buildConversation(message, history, memories, intent, file, fileType);
-
-  const response = await executeWithRetry((aiClient) =>
-    aiClient.models.generateContent({
-      model: MODEL_NAME,
-      contents: conversation,
-    })
-  );
-
-  return { intent, text: response.text };
-};
-
+// Streaming Chat (Groq)
 export const chatWithAIStream = async (
   message,
   history = [],
@@ -141,15 +50,68 @@ export const chatWithAIStream = async (
   file = null,
   fileType = null
 ) => {
+  // Groq abhi image natively waise support nahi karta jaise Gemini, 
+  // isliye agar file aati hai toh abhi ke liye text ko hi prefer karenge.
+  if (file) {
+    console.warn("Groq currently does not support Gemini-style image inline data natively. Processing text only.");
+  }
+
   const intent = detectIntent(message || "");
-  const conversation = buildConversation(message, history, memories, intent, file, fileType);
+  const messages = buildGroqMessages(message, history, memories, intent);
 
-  const stream = await executeWithRetry((aiClient) =>
-    aiClient.models.generateContentStream({
+  try {
+    const groqStream = await groq.chat.completions.create({
+      messages: messages,
       model: MODEL_NAME,
-      contents: conversation,
-    })
-  );
+      stream: true,
+      temperature: 0.7,
+      max_tokens: 2000,
+    });
 
-  return { intent, stream };
+    // Adapter for controller to keep format same as Gemini stream
+    async function* transformStream() {
+      for await (const chunk of groqStream) {
+        const textChunk = chunk.choices[0]?.delta?.content || "";
+        if (textChunk) {
+          yield { text: textChunk };
+        }
+      }
+    }
+
+    return { intent, stream: transformStream() };
+  } catch (error) {
+    console.error("Groq API Error:", error.message);
+    throw error;
+  }
+};
+
+// Normal Chat (Groq)
+export const chatWithAI = async (
+  message,
+  history = [],
+  memories = [],
+  file = null,
+  fileType = null
+) => {
+  if (file) {
+    console.warn("Groq currently does not support Gemini-style image inline data natively. Processing text only.");
+  }
+
+  const intent = detectIntent(message || "");
+  const messages = buildGroqMessages(message, history, memories, intent);
+
+  try {
+    const response = await groq.chat.completions.create({
+      messages: messages,
+      model: MODEL_NAME,
+      stream: false,
+      temperature: 0.7,
+      max_tokens: 2000,
+    });
+
+    return { intent, text: response.choices[0]?.message?.content || "" };
+  } catch (error) {
+    console.error("Groq API Error:", error.message);
+    throw error;
+  }
 };
