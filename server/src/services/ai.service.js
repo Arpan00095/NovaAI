@@ -1,17 +1,58 @@
 import { GoogleGenAI } from "@google/genai";
-
 import env from "../config/env.js";
-
 import { detectIntent } from "./intent.service.js";
 import { aiToolRouter } from "../router/ai.tool.router.js";
 import { SYSTEM_PROMPTS } from "../prompts/systemPrompts.js";
 
-const ai = new GoogleGenAI({
-  apiKey: env.GEMINI_API_KEY,
-});
+// Multiple API Keys Pool (4 Keys Supported)
+const apiKeys = [
+  env.GEMINI_API_KEY_1,
+  env.GEMINI_API_KEY_2,
+  env.GEMINI_API_KEY_3,
+  env.GEMINI_API_KEY_4,
+].filter(Boolean); // Only valid non-empty keys keep karega
 
-// Official stable model for @google/genai SDK
+let currentKeyIndex = 0;
+
+// Helper: Active Key ke sath GoogleGenAI Client return karega
+const getAIClient = () => {
+  const activeKey = apiKeys[currentKeyIndex % apiKeys.length];
+  return new GoogleGenAI({ apiKey: activeKey });
+};
+
+// Helper: 429 Rate Limit aane par Next Key par switch karega
+const rotateKey = () => {
+  if (apiKeys.length > 1) {
+    currentKeyIndex = (currentKeyIndex + 1) % apiKeys.length;
+    console.warn(`[Gemini API] Rotating to API Key #${currentKeyIndex + 1}`);
+  }
+};
+
 const MODEL_NAME = "gemini-2.0-flash";
+
+// -----------------------------
+// Auto-Retry & Key Rotation Wrapper
+// -----------------------------
+const executeWithRetry = async (fn, retries = 3, delay = 1500) => {
+  try {
+    return await fn(getAIClient());
+  } catch (error) {
+    const isRateLimit =
+      error.status === 429 ||
+      error.message?.includes("429") ||
+      error.message?.includes("RESOURCE_EXHAUSTED");
+
+    if (isRateLimit && retries > 0) {
+      console.warn(
+        `[Gemini API Rate Limit 429] Switching key & retrying... (${retries} attempts left)`
+      );
+      rotateKey();
+      await new Promise((res) => setTimeout(res, delay));
+      return executeWithRetry(fn, retries - 1, delay);
+    }
+    throw error;
+  }
+};
 
 // -----------------------------
 // Build Conversation (Multimodal Supported)
@@ -108,9 +149,10 @@ export const generateConversationTitle = async (message) => {
   try {
     const textPrompt = message || "Image analysis conversation";
 
-    const response = await ai.models.generateContent({
-      model: MODEL_NAME,
-      contents: `
+    const response = await executeWithRetry((aiClient) =>
+      aiClient.models.generateContent({
+        model: MODEL_NAME,
+        contents: `
 Generate a very short conversation title.
 
 Rules:
@@ -123,7 +165,8 @@ Rules:
 User Message:
 ${textPrompt}
 `,
-    });
+      })
+    );
 
     return (
       response.text?.trim() ||
@@ -160,10 +203,12 @@ export const chatWithAI = async (
     fileType
   );
 
-  const response = await ai.models.generateContent({
-    model: MODEL_NAME,
-    contents: conversation,
-  });
+  const response = await executeWithRetry((aiClient) =>
+    aiClient.models.generateContent({
+      model: MODEL_NAME,
+      contents: conversation,
+    })
+  );
 
   return {
     intent,
@@ -192,10 +237,12 @@ export const chatWithAIStream = async (
     fileType
   );
 
-  const stream = await ai.models.generateContentStream({
-    model: MODEL_NAME,
-    contents: conversation,
-  });
+  const stream = await executeWithRetry((aiClient) =>
+    aiClient.models.generateContentStream({
+      model: MODEL_NAME,
+      contents: conversation,
+    })
+  );
 
   return {
     intent,

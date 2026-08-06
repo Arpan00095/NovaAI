@@ -11,8 +11,18 @@ const env = {
   JWT_SECRET:
     process.env.JWT_SECRET || "change_this_in_production",
 
-  GEMINI_API_KEY:
-    process.env.GEMINI_API_KEY || "",
+  // Gemini API Keys Pool (Key Rotation ke liye)
+  GEMINI_API_KEY_1:
+    process.env.GEMINI_API_KEY_1 || process.env.GEMINI_API_KEY || "",
+
+  GEMINI_API_KEY_2:
+    process.env.GEMINI_API_KEY_2 || "",
+
+  GEMINI_API_KEY_3:
+    process.env.GEMINI_API_KEY_3 || "",
+
+  GEMINI_API_KEY_4:
+    process.env.GEMINI_API_KEY_4 || "",
 
   SUPABASE_URL:
     process.env.SUPABASE_URL || "",

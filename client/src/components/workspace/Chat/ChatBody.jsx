@@ -32,16 +32,36 @@ const ChatBody = () => {
     "User";
 
   const bottomRef = useRef(null);
+  const containerRef = useRef(null);
+  const prevMessagesLength = useRef(messages.length);
 
+  // Smart Scroll Handler
   useEffect(() => {
-    bottomRef.current?.scrollIntoView({
-      behavior: "smooth",
-    });
+    const isNewMessageAdded = messages.length > prevMessagesLength.current;
+    prevMessagesLength.current = messages.length;
+
+    // Jab user naya message bhejega, tabhi forcefully bottom me scroll karega
+    if (isNewMessageAdded) {
+      bottomRef.current?.scrollIntoView({ behavior: "smooth" });
+      return;
+    }
+
+    // Streaming ke dauran check karo agar user already bottom ke paas hai tabhi smooth scroll karo
+    if (loadingMessage && containerRef.current) {
+      const { scrollTop, scrollHeight, clientHeight } = containerRef.current;
+      const isNearBottom = scrollHeight - scrollTop - clientHeight < 150;
+
+      if (isNearBottom) {
+        bottomRef.current?.scrollIntoView({ behavior: "smooth" });
+      }
+    }
   }, [messages, loadingMessage]);
 
   return (
-    <main className="flex-1 overflow-y-auto scroll-smooth bg-[#212121]">
-
+    <main 
+      ref={containerRef}
+      className="flex-1 overflow-y-auto scroll-smooth bg-[#212121]"
+    >
       {messages.length === 0 ? (
 
         <div className="h-full flex items-center justify-center px-6">

@@ -85,6 +85,7 @@ const PromptInput = () => {
   };
 
   const removeSelectedFile = () => {
+    if (loadingMessage) return; // Block removal while streaming
     setSelectedFile(null);
     if (filePreview) {
       URL.revokeObjectURL(filePreview);
@@ -120,7 +121,7 @@ const PromptInput = () => {
   // ===============================
 
   const handleVoice = () => {
-    if (!supported) return;
+    if (!supported || loadingMessage) return;
 
     if (listening) {
       stopListening();
@@ -134,6 +135,7 @@ const PromptInput = () => {
   // ===============================
 
   const handleMenuSelect = (action) => {
+    if (loadingMessage) return;
     setMenuOpen(false);
 
     switch (action) {
@@ -205,6 +207,7 @@ const PromptInput = () => {
               {/* Remove File Button */}
               <button
                 type="button"
+                disabled={loadingMessage}
                 onClick={removeSelectedFile}
                 className="
                   absolute
@@ -221,6 +224,8 @@ const PromptInput = () => {
                   transition
                   hover:bg-[#606060]
                   hover:text-white
+                  disabled:opacity-50
+                  disabled:cursor-not-allowed
                 "
               >
                 <X size={12} />
@@ -238,13 +243,15 @@ const PromptInput = () => {
               ref={fileInputRef}
               hidden
               type="file"
+              disabled={loadingMessage}
               accept="image/*,.pdf,.doc,.docx,.txt,.csv,.xlsx"
               onChange={handleFileChange}
             />
 
             <button
               type="button"
-              onClick={() => setMenuOpen(!menuOpen)}
+              disabled={loadingMessage}
+              onClick={() => !loadingMessage && setMenuOpen(!menuOpen)}
               className="
                 flex
                 h-9
@@ -255,12 +262,14 @@ const PromptInput = () => {
                 text-slate-300
                 transition
                 hover:bg-[#3b3b3b]
+                disabled:opacity-40
+                disabled:cursor-not-allowed
               "
             >
               <Plus size={18} />
             </button>
 
-            {menuOpen && <PlusMenu onSelect={handleMenuSelect} />}
+            {menuOpen && !loadingMessage && <PlusMenu onSelect={handleMenuSelect} />}
           </div>
 
           {/* Textarea */}
@@ -268,7 +277,8 @@ const PromptInput = () => {
             ref={textareaRef}
             rows={1}
             value={prompt}
-            placeholder="Ask NovaAI anything..."
+            disabled={loadingMessage}
+            placeholder={loadingMessage ? "NovaAI is thinking..." : "Ask NovaAI anything..."}
             onChange={(e) => {
               setPrompt(e.target.value);
               autoResize();
@@ -276,7 +286,9 @@ const PromptInput = () => {
             onKeyDown={async (e) => {
               if (e.key === "Enter" && !e.shiftKey) {
                 e.preventDefault();
-                await handleSend();
+                if (!loadingMessage) {
+                  await handleSend();
+                }
               }
             }}
             style={{
@@ -296,6 +308,8 @@ const PromptInput = () => {
               placeholder:text-[#8e8ea0]
               py-0
               my-1
+              disabled:opacity-50
+              disabled:cursor-not-allowed
             "
           />
 
@@ -304,6 +318,7 @@ const PromptInput = () => {
             <VoiceButton
               listening={listening}
               supported={supported}
+              disabled={loadingMessage}
               onClick={handleVoice}
             />
           </div>
