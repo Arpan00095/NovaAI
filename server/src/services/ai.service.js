@@ -4,14 +4,39 @@ import { detectIntent } from "./intent.service.js";
 import { aiToolRouter } from "../router/ai.tool.router.js";
 import { SYSTEM_PROMPTS } from "../prompts/systemPrompts.js";
 
-// Initialize Groq Client Only
 const groq = new Groq({ apiKey: env.GROQ_API_KEY || process.env.GROQ_API_KEY });
 
-// Zero API Hit Title Generator
+// Groq official primary models
+const PRIMARY_TEXT_MODEL = "llama-3.3-70b-versatile";
+const PRIMARY_VISION_MODEL = "qwen/qwen3.6-27b";
+
 export const generateConversationTitle = async (message) => {
   if (!message || message.trim() === "") return "New Conversation";
   const cleanMessage = message.trim();
   return cleanMessage.length > 30 ? cleanMessage.substring(0, 30) + "..." : cleanMessage;
+};
+
+// Helper function to dynamically check active Groq vision models
+const getActiveVisionModel = async () => {
+  try {
+    const modelsList = await groq.models.list();
+    const activeModels = modelsList.data.map((m) => m.id);
+
+    // 1. Check official current vision model
+    if (activeModels.includes(PRIMARY_VISION_MODEL)) {
+      return PRIMARY_VISION_MODEL;
+    }
+
+    // 2. Fallback: Find any model containing 'qwen', 'vision' or 'llama-3.2'
+    const foundVisionModel = activeModels.find(
+      (id) => id.includes("qwen") || id.includes("vision")
+    );
+
+    return foundVisionModel || PRIMARY_VISION_MODEL;
+  } catch (err) {
+    console.warn("Could not fetch Groq models list, defaulting to primary vision model:", err.message);
+    return PRIMARY_VISION_MODEL;
+  }
 };
 
 export const chatWithAIStream = async (
@@ -32,7 +57,7 @@ export const chatWithAIStream = async (
 
   const fullSystemPrompt = `${systemPrompt}\n${memoryPrompt}`;
 
-  let selectedModel = "llama-3.3-70b-versatile";
+  let selectedModel = PRIMARY_TEXT_MODEL;
   let groqMessages = [
     { role: "system", content: fullSystemPrompt },
     ...history.map((m) => ({
@@ -41,10 +66,9 @@ export const chatWithAIStream = async (
     })),
   ];
 
-  // If Image/Photo is uploaded -> Use Groq Active Vision Model
   if (file) {
-    selectedModel = "llama-3.2-90b-vision-preview";
-    console.log("[AI Engine] Image detected -> Routing via Groq Vision (90b)...");
+    selectedModel = await getActiveVisionModel();
+    console.log(`[AI Engine] Image detected -> Dynamically selected Groq Vision Model: (${selectedModel})`);
 
     const imageUrl = file.startsWith("data:")
       ? file
@@ -61,7 +85,6 @@ export const chatWithAIStream = async (
       ],
     });
   } else {
-    console.log("[AI Engine] Text prompt -> Routing via Groq Text (70b)...");
     groqMessages.push({ role: "user", content: message || "" });
   }
 
@@ -82,7 +105,7 @@ export const chatWithAIStream = async (
 
     return { intent, stream: transformStream() };
   } catch (error) {
-    console.error("Groq API Error:", error.message);
+    console.error(`Groq API Error on model (${selectedModel}):`, error.message);
     throw error;
   }
 };
