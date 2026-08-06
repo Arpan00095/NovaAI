@@ -14,28 +14,33 @@ const apiKeys = [
 
 let currentKeyIndex = 0;
 
+// Supported models for fallback strategy
+const MODELS = ["gemini-2.0-flash", "gemini-1.5-flash"];
+let currentModelIndex = 0;
+
 // Helper: Active Key ke sath GoogleGenAI Client return karega
 const getAIClient = () => {
   const activeKey = apiKeys[currentKeyIndex % apiKeys.length];
   return new GoogleGenAI({ apiKey: activeKey });
 };
 
-// Helper: 429 Rate Limit aane par Next Key par switch karega
-const rotateKey = () => {
+// Helper: 429 Rate Limit aane par Next Key & Model par switch karega
+const rotateKeyAndModel = () => {
   if (apiKeys.length > 1) {
     currentKeyIndex = (currentKeyIndex + 1) % apiKeys.length;
     console.warn(`[Gemini API] Rotating to API Key #${currentKeyIndex + 1}`);
   }
+  // Alternate model on rate limits to bypass model-specific quotas
+  currentModelIndex = (currentModelIndex + 1) % MODELS.length;
 };
 
-const MODEL_NAME = "gemini-2.0-flash";
-
 // -----------------------------
-// Auto-Retry & Key Rotation Wrapper
+// Auto-Retry, Key Rotation & Model Fallback Wrapper
 // -----------------------------
-const executeWithRetry = async (fn, retries = 3, delay = 1500) => {
+const executeWithRetry = async (fn, retries = 4, delay = 2000) => {
   try {
-    return await fn(getAIClient());
+    const activeModel = MODELS[currentModelIndex % MODELS.length];
+    return await fn(getAIClient(), activeModel);
   } catch (error) {
     const isRateLimit =
       error.status === 429 ||
@@ -44,9 +49,9 @@ const executeWithRetry = async (fn, retries = 3, delay = 1500) => {
 
     if (isRateLimit && retries > 0) {
       console.warn(
-        `[Gemini API Rate Limit 429] Switching key & retrying... (${retries} attempts left)`
+        `[Gemini API Rate Limit 429] Rotating key & switching model... (${retries} attempts left)`
       );
-      rotateKey();
+      rotateKeyAndModel();
       await new Promise((res) => setTimeout(res, delay));
       return executeWithRetry(fn, retries - 1, delay);
     }
@@ -149,9 +154,9 @@ export const generateConversationTitle = async (message) => {
   try {
     const textPrompt = message || "Image analysis conversation";
 
-    const response = await executeWithRetry((aiClient) =>
+    const response = await executeWithRetry((aiClient, model) =>
       aiClient.models.generateContent({
-        model: MODEL_NAME,
+        model: model,
         contents: `
 Generate a very short conversation title.
 
@@ -203,9 +208,9 @@ export const chatWithAI = async (
     fileType
   );
 
-  const response = await executeWithRetry((aiClient) =>
+  const response = await executeWithRetry((aiClient, model) =>
     aiClient.models.generateContent({
-      model: MODEL_NAME,
+      model: model,
       contents: conversation,
     })
   );
@@ -237,9 +242,9 @@ export const chatWithAIStream = async (
     fileType
   );
 
-  const stream = await executeWithRetry((aiClient) =>
+  const stream = await executeWithRetry((aiClient, model) =>
     aiClient.models.generateContentStream({
-      model: MODEL_NAME,
+      model: model,
       contents: conversation,
     })
   );
