@@ -4,8 +4,10 @@ import { detectIntent } from "./intent.service.js";
 import { aiToolRouter } from "../router/ai.tool.router.js";
 import { SYSTEM_PROMPTS } from "../prompts/systemPrompts.js";
 
+// Initialize Groq Client Only
 const groq = new Groq({ apiKey: env.GROQ_API_KEY || process.env.GROQ_API_KEY });
 
+// Zero API Hit Title Generator
 export const generateConversationTitle = async (message) => {
   if (!message || message.trim() === "") return "New Conversation";
   const cleanMessage = message.trim();
@@ -30,7 +32,6 @@ export const chatWithAIStream = async (
 
   const fullSystemPrompt = `${systemPrompt}\n${memoryPrompt}`;
 
-  // Select Model & Format Messages based on Image Presence
   let selectedModel = "llama-3.3-70b-versatile";
   let groqMessages = [
     { role: "system", content: fullSystemPrompt },
@@ -40,12 +41,14 @@ export const chatWithAIStream = async (
     })),
   ];
 
+  // If Image/Photo is uploaded -> Use Groq Active Vision Model
   if (file) {
-    // Switch to Vision Model when Image is present
-    selectedModel = "llama-3.2-11b-vision-preview";
-    
-    // Ensure file format has correct base64 data URL
-    const imageUrl = file.startsWith("data:") ? file : `data:${fileType || "image/png"};base64,${file}`;
+    selectedModel = "llama-3.2-90b-vision-preview";
+    console.log("[AI Engine] Image detected -> Routing via Groq Vision (90b)...");
+
+    const imageUrl = file.startsWith("data:")
+      ? file
+      : `data:${fileType || "image/png"};base64,${file}`;
 
     groqMessages.push({
       role: "user",
@@ -58,6 +61,7 @@ export const chatWithAIStream = async (
       ],
     });
   } else {
+    console.log("[AI Engine] Text prompt -> Routing via Groq Text (70b)...");
     groqMessages.push({ role: "user", content: message || "" });
   }
 
@@ -78,7 +82,7 @@ export const chatWithAIStream = async (
 
     return { intent, stream: transformStream() };
   } catch (error) {
-    console.error("Groq Vision Stream Error:", error.message);
+    console.error("Groq API Error:", error.message);
     throw error;
   }
 };
