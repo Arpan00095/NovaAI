@@ -11,13 +11,15 @@ const ai = new GoogleGenAI({
 });
 
 // -----------------------------
-// Build Conversation
+// Build Conversation (Multimodal Supported)
 // -----------------------------
 const buildConversation = (
   message,
   history = [],
   memories = [],
-  intent
+  intent,
+  file = null,
+  fileType = null
 ) => {
   const engine = aiToolRouter(intent);
 
@@ -50,10 +52,31 @@ Do not mention these memories unless the user asks or they naturally help answer
 
     parts: [
       {
-        text: msg.content,
+        text: msg.content || "",
       },
     ],
   }));
+
+  // Current User Request Parts (Text + Optional File/Image)
+  const currentParts = [];
+
+  // Agar user ne Image/File upload kiya hai
+  if (file) {
+    const base64Data = file.includes(",") ? file.split(",")[1] : file;
+    currentParts.push({
+      inlineData: {
+        data: base64Data,
+        mimeType: fileType || "image/png",
+      },
+    });
+  }
+
+  // Text message add karein
+  if (message) {
+    currentParts.push({
+      text: message,
+    });
+  }
 
   return [
     {
@@ -73,11 +96,7 @@ ${memoryPrompt}
 
     {
       role: "user",
-      parts: [
-        {
-          text: message,
-        },
-      ],
+      parts: currentParts,
     },
   ];
 };
@@ -85,13 +104,13 @@ ${memoryPrompt}
 // -----------------------------
 // Generate Conversation Title
 // -----------------------------
-export const generateConversationTitle =
-  async (message) => {
-    try {
-      const response =
-        await ai.models.generateContent({
-          model: "gemini-flash-latest",
-          contents: `
+export const generateConversationTitle = async (message) => {
+  try {
+    const textPrompt = message || "Image analysis conversation";
+
+    const response = await ai.models.generateContent({
+      model: "gemini-flash-latest",
+      contents: `
 Generate a very short conversation title.
 
 Rules:
@@ -102,48 +121,49 @@ Rules:
 - Return ONLY the title
 
 User Message:
-${message}
+${textPrompt}
 `,
-        });
+    });
 
-      return (
-        response.text?.trim() ||
-        message.substring(0, 40)
-      );
-    } catch (err) {
-      console.error(
-        "Title Generation Error:",
-        err.message
-      );
+    return (
+      response.text?.trim() ||
+      textPrompt.substring(0, 40)
+    );
+  } catch (err) {
+    console.error(
+      "Title Generation Error:",
+      err.message
+    );
 
-      return message.substring(0, 40);
-    }
-  };
+    return message ? message.substring(0, 40) : "New Chat";
+  }
+};
 
 // -----------------------------
-// Normal Chat
+// Normal Chat (Multimodal)
 // -----------------------------
 export const chatWithAI = async (
   message,
   history = [],
-  memories = []
+  memories = [],
+  file = null,
+  fileType = null
 ) => {
-  const intent =
-    detectIntent(message);
+  const intent = detectIntent(message || "");
 
-  const conversation =
-    buildConversation(
-      message,
-      history,
-      memories,
-      intent
-    );
+  const conversation = buildConversation(
+    message,
+    history,
+    memories,
+    intent,
+    file,
+    fileType
+  );
 
-  const response =
-    await ai.models.generateContent({
-      model: "gemini-flash-latest",
-      contents: conversation,
-    });
+  const response = await ai.models.generateContent({
+    model: "gemini-flash-latest",
+    contents: conversation,
+  });
 
   return {
     intent,
@@ -152,33 +172,33 @@ export const chatWithAI = async (
 };
 
 // -----------------------------
-// Streaming Chat
+// Streaming Chat (Multimodal)
 // -----------------------------
-export const chatWithAIStream =
-  async (
+export const chatWithAIStream = async (
+  message,
+  history = [],
+  memories = [],
+  file = null,
+  fileType = null
+) => {
+  const intent = detectIntent(message || "");
+
+  const conversation = buildConversation(
     message,
-    history = [],
-    memories = []
-  ) => {
-    const intent =
-      detectIntent(message);
+    history,
+    memories,
+    intent,
+    file,
+    fileType
+  );
 
-    const conversation =
-      buildConversation(
-        message,
-        history,
-        memories,
-        intent
-      );
+  const stream = await ai.models.generateContentStream({
+    model: "gemini-flash-latest",
+    contents: conversation,
+  });
 
-    const stream =
-      await ai.models.generateContentStream({
-        model: "gemini-flash-latest",
-        contents: conversation,
-      });
-
-    return {
-      intent,
-      stream,
-    };
+  return {
+    intent,
+    stream,
   };
+};

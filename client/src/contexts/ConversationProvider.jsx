@@ -27,63 +27,57 @@ import {
   exportChatAsMarkdown,
 } from "../services/export.service";
 
+// File ko Base64 me convert karne ka helper function
+const convertToBase64 = (file) => {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.readAsDataURL(file);
+    reader.onload = () => resolve(reader.result);
+    reader.onerror = (error) => reject(error);
+  });
+};
+
 const ConversationProvider = ({ children }) => {
-  const [
-    activeConversationId,
-    setActiveConversationId,
-  ] = useState(null);
+  const [activeConversationId, setActiveConversationId] = useState(null);
+  const [conversations, setConversations] = useState([]);
 
-  const [conversations, setConversations] =
-    useState([]);
-
-    const archivedConversations =
-  conversations.filter(
+  const archivedConversations = conversations.filter(
     (chat) => chat.is_archived
   );
 
-  const [messages, setMessages] =
-    useState([]);
+  const [messages, setMessages] = useState([]);
+  const [loadingConversations, setLoadingConversations] = useState(false);
+  const [loadingMessage, setLoadingMessage] = useState(false);
 
-  const [
-    loadingConversations,
-    setLoadingConversations,
-  ] = useState(false);
+  const { isGuest } = useContext(AuthContext);
 
-  const [loadingMessage, setLoadingMessage] =
-    useState(false);
-  const { isGuest } =
-    useContext(AuthContext);
+  const refreshConversations = useCallback(async () => {
+    if (isGuest) {
+      setConversations([]);
+      setActiveConversationId(null);
+      setMessages([]);
+      return;
+    }
 
-  const refreshConversations =
-    useCallback(async () => {
-      if (isGuest) {
-        setConversations([]);
-        setActiveConversationId(null);
-        setMessages([]);
-        return;
-      }
+    try {
+      setLoadingConversations(true);
 
-      try {
-        setLoadingConversations(true);
+      const data = await getConversations();
+      const chats = data.conversations || [];
 
-        const data = await getConversations();
+      // Pinned chats always on top
+      chats.sort((a, b) => {
+        if (a.is_pinned === b.is_pinned) return 0;
+        return a.is_pinned ? -1 : 1;
+      });
 
-        const chats = data.conversations || [];
-
-        // Pinned chats always on top
-        chats.sort((a, b) => {
-          if (a.is_pinned === b.is_pinned) return 0;
-
-          return a.is_pinned ? -1 : 1;
-        });
-
-        setConversations(chats);
-      } catch (err) {
-        console.error(err);
-      } finally {
-        setLoadingConversations(false);
-      }
-    }, [isGuest]);
+      setConversations(chats);
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setLoadingConversations(false);
+    }
+  }, [isGuest]);
 
   useEffect(() => {
     if (isGuest) {
@@ -95,26 +89,17 @@ const ConversationProvider = ({ children }) => {
     }
   }, [isGuest, refreshConversations]);
 
-  const selectConversation =
-    async (conversationId) => {
-      if (isGuest) return;
-      try {
-        setActiveConversationId(
-          conversationId
-        );
+  const selectConversation = async (conversationId) => {
+    if (isGuest) return;
+    try {
+      setActiveConversationId(conversationId);
 
-        const data =
-          await getConversation(
-            conversationId
-          );
-
-        setMessages(
-          data.messages || []
-        );
-      } catch (err) {
-        console.error(err);
-      }
-    };
+      const data = await getConversation(conversationId);
+      setMessages(data.messages || []);
+    } catch (err) {
+      console.error(err);
+    }
+  };
 
   const newChat = () => {
     setActiveConversationId(null);
@@ -125,17 +110,32 @@ const ConversationProvider = ({ children }) => {
     }
   };
 
-  const sendPrompt = async (prompt) => {
-    if (!prompt.trim()) return;
+  // ==========================================
+  // Updated sendPrompt (Supports Text + File)
+  // ==========================================
+  const sendPrompt = async (prompt, file = null) => {
+    if (!prompt.trim() && !file) return;
 
     try {
       setLoadingMessage(true);
 
+      let fileBase64 = null;
+      let filePreviewUrl = null;
+
+      if (file) {
+        if (file.type.startsWith("image/")) {
+          filePreviewUrl = URL.createObjectURL(file);
+          fileBase64 = await convertToBase64(file);
+        }
+      }
+
+      // User Message + Image Preview Chat Box me append karein
       setMessages((prev) => [
         ...prev,
         {
           role: "user",
           content: prompt,
+          image: filePreviewUrl,
         },
         {
           role: "assistant",
@@ -144,34 +144,23 @@ const ConversationProvider = ({ children }) => {
         },
       ]);
 
-      const token =
-        localStorage.getItem("token");
+      const token = localStorage.getItem("token");
 
       await sendStreamMessage({
         message: prompt,
-        conversationId:
-          activeConversationId,
+        file: fileBase64,
+        fileType: file?.type,
+        conversationId: activeConversationId,
         token,
 
         onMessage: (chunk) => {
           setMessages((prev) => {
             const updated = [...prev];
+            if (updated.length === 0) return prev;
 
-            if (
-              updated.length === 0
-            )
-              return prev;
-
-            updated[
-              updated.length - 1
-            ] = {
-              ...updated[
-              updated.length - 1
-              ],
-              content:
-                updated[
-                  updated.length - 1
-                ].content + chunk,
+            updated[updated.length - 1] = {
+              ...updated[updated.length - 1],
+              content: updated[updated.length - 1].content + chunk,
             };
 
             return updated;
@@ -181,18 +170,10 @@ const ConversationProvider = ({ children }) => {
         onImage: (imageUrl) => {
           setMessages((prev) => {
             const updated = [...prev];
+            if (updated.length === 0) return prev;
 
-            if (
-              updated.length === 0
-            )
-              return prev;
-
-            updated[
-              updated.length - 1
-            ] = {
-              ...updated[
-              updated.length - 1
-              ],
+            updated[updated.length - 1] = {
+              ...updated[updated.length - 1],
               image: imageUrl,
               content: "",
             };
@@ -201,39 +182,27 @@ const ConversationProvider = ({ children }) => {
           });
         },
 
-        onDone: async (
-          conversationId
-        ) => {
+        onDone: async (conversationId) => {
           if (!isGuest) {
-            if (
-              !activeConversationId &&
-              conversationId
-            ) {
-              setActiveConversationId(
-                conversationId
-              );
+            if (!activeConversationId && conversationId) {
+              setActiveConversationId(conversationId);
             }
 
             await refreshConversations();
           }
         },
       });
-    }
-    catch (err) {
+    } catch (err) {
       console.error(err);
 
-      toast.error(
-        err.message || "Something went wrong."
-      );
+      toast.error(err.message || "Something went wrong.");
 
       setMessages((prev) => {
         const updated = [...prev];
 
         if (updated.length > 0) {
-          const last =
-            updated[updated.length - 1];
+          const last = updated[updated.length - 1];
 
-          // Last assistant placeholder ko error me convert karo
           if (last.role === "assistant") {
             updated[updated.length - 1] = {
               ...last,
@@ -265,17 +234,10 @@ const ConversationProvider = ({ children }) => {
     }
   };
 
-  const renameChat = async (
-    conversationId,
-    title
-  ) => {
+  const renameChat = async (conversationId, title) => {
     if (isGuest) return;
     try {
-      await renameConversation(
-        conversationId,
-        title
-      );
-
+      await renameConversation(conversationId, title);
       await refreshConversations();
 
       toast.success("Chat renamed ✨");
@@ -285,23 +247,13 @@ const ConversationProvider = ({ children }) => {
     }
   };
 
-  const deleteChat = async (
-    conversationId
-  ) => {
+  const deleteChat = async (conversationId) => {
     if (isGuest) return;
     try {
-      await deleteConversation(
-        conversationId
-      );
+      await deleteConversation(conversationId);
 
-      if (
-        conversationId ===
-        activeConversationId
-      ) {
-        setActiveConversationId(
-          null
-        );
-
+      if (conversationId === activeConversationId) {
+        setActiveConversationId(null);
         setMessages([]);
       }
 
@@ -317,45 +269,28 @@ const ConversationProvider = ({ children }) => {
   // ============================
   // Pin / Unpin Chat
   // ============================
-
-  const pinChat = async (
-    conversationId,
-    isPinned
-  ) => {
+  const pinChat = async (conversationId, isPinned) => {
     if (isGuest) return;
 
     try {
-      await togglePinConversation(
-        conversationId,
-        isPinned
-      );
-
+      await togglePinConversation(conversationId, isPinned);
       await refreshConversations();
 
-      toast.success(
-        isPinned
-          ? "Chat pinned 📌"
-          : "Chat unpinned"
-      );
+      toast.success(isPinned ? "Chat pinned 📌" : "Chat unpinned");
     } catch (err) {
       console.error(err);
-
-      toast.error(
-        "Unable to update pin"
-      );
+      toast.error("Unable to update pin");
     }
   };
 
   // ============================
   // Share Chat
   // ============================
-
   const shareChat = async (conversationId) => {
     if (isGuest) return;
 
     try {
       const data = await shareConversation(conversationId);
-
       await navigator.clipboard.writeText(data.shareUrl);
 
       toast.success("Share link copied 📋");
@@ -363,50 +298,32 @@ const ConversationProvider = ({ children }) => {
       return data.shareUrl;
     } catch (err) {
       console.error(err);
-
       toast.error("Unable to share chat");
     }
   };
 
   // ============================
-// Archive Chat
-// ============================
+  // Archive Chat
+  // ============================
+  const archiveChat = async (conversationId, isArchived) => {
+    if (isGuest) return;
 
-const archiveChat = async (
-  conversationId,
-  isArchived
-) => {
-  if (isGuest) return;
+    try {
+      await archiveConversation(conversationId, isArchived);
 
-  try {
-    await archiveConversation(
-      conversationId,
-      isArchived
-    );
+      if (conversationId === activeConversationId && isArchived) {
+        setActiveConversationId(null);
+        setMessages([]);
+      }
 
-    if (
-      conversationId === activeConversationId &&
-      isArchived
-    ) {
-      setActiveConversationId(null);
-      setMessages([]);
+      await refreshConversations();
+
+      toast.success(isArchived ? "Chat archived 📦" : "Chat restored");
+    } catch (err) {
+      console.error(err);
+      toast.error("Unable to archive chat");
     }
-
-    await refreshConversations();
-
-    toast.success(
-      isArchived
-        ? "Chat archived 📦"
-        : "Chat restored"
-    );
-  } catch (err) {
-    console.error(err);
-
-    toast.error(
-      "Unable to archive chat"
-    );
-  }
-};
+  };
 
   // ============================
   // Export Chat
@@ -441,7 +358,6 @@ const archiveChat = async (
         archivedConversations,
 
         refreshConversations,
-        
         loadingConversations,
 
         messages,

@@ -5,7 +5,7 @@ import {
   useState,
 } from "react";
 
-import { Plus } from "lucide-react";
+import { Plus, X, FileText } from "lucide-react";
 
 import { ConversationContext } from "../../../contexts/ConversationContext";
 import useSpeechRecognition from "../../../hooks/useSpeechRecognition";
@@ -22,6 +22,10 @@ const PromptInput = () => {
   const [prompt, setPrompt] = useState("");
   const [menuOpen, setMenuOpen] = useState(false);
 
+  // File preview state
+  const [selectedFile, setSelectedFile] = useState(null);
+  const [filePreview, setFilePreview] = useState(null);
+
   const { sendPrompt, loadingMessage } = useContext(ConversationContext);
 
   // ===============================
@@ -31,15 +35,13 @@ const PromptInput = () => {
   const autoResize = () => {
     if (!textareaRef.current) return;
 
-    // Height reset karna zaroori hai scrollHeight sahi calculate karne ke liye
     textareaRef.current.style.height = "24px";
     
     const scrollHeight = textareaRef.current.scrollHeight;
-    const maxHeight = 160; // Max height in pixels
+    const maxHeight = 160;
 
     textareaRef.current.style.height = `${Math.min(scrollHeight, maxHeight)}px`;
     
-    // 160px exceed hote hi scrolling enable hogi
     if (scrollHeight > maxHeight) {
       textareaRef.current.style.overflowY = "auto";
     } else {
@@ -61,21 +63,56 @@ const PromptInput = () => {
     });
 
   // ===============================
+  // File Upload & Preview Handler
+  // ===============================
+
+  const handleFileChange = (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setSelectedFile(file);
+
+    // Agar Image hai toh local preview URL banayein
+    if (file.type.startsWith("image/")) {
+      const previewUrl = URL.createObjectURL(file);
+      setFilePreview(previewUrl);
+    } else {
+      setFilePreview(null);
+    }
+
+    // Input reset karein taaki same file dubara select ho sake
+    e.target.value = "";
+  };
+
+  const removeSelectedFile = () => {
+    setSelectedFile(null);
+    if (filePreview) {
+      URL.revokeObjectURL(filePreview);
+      setFilePreview(null);
+    }
+  };
+
+  // ===============================
   // Send Message
   // ===============================
 
   const handleSend = async () => {
-    if (loadingMessage || !prompt.trim()) return;
+    if (loadingMessage || (!prompt.trim() && !selectedFile)) return;
 
     const text = prompt.trim();
+    const fileToSend = selectedFile;
+
+    // Reset Input States
     setPrompt("");
+    removeSelectedFile();
 
     if (textareaRef.current) {
       textareaRef.current.style.height = "24px";
       textareaRef.current.style.overflowY = "hidden";
     }
 
-    await sendPrompt(text);
+    // Prompt aur File dono ConversationContext me bhejein
+    await sendPrompt(text, fileToSend);
   };
 
   // ===============================
@@ -90,17 +127,6 @@ const PromptInput = () => {
     } else {
       startListening();
     }
-  };
-
-  // ===============================
-  // File Upload
-  // ===============================
-
-  const handleFileChange = (e) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-
-    console.log("Selected file:", file);
   };
 
   // ===============================
@@ -151,6 +177,58 @@ const PromptInput = () => {
           py-2.5
         "
       >
+        {/* File Preview Badge Area */}
+        {selectedFile && (
+          <div className="mb-2 flex items-center gap-2 pl-1 pt-1">
+            <div className="relative flex items-center gap-2.5 rounded-2xl bg-[#3b3b3b] p-2 pr-8 text-xs text-white shadow-md">
+              {filePreview ? (
+                <img
+                  src={filePreview}
+                  alt="preview"
+                  className="h-10 w-10 rounded-xl object-cover"
+                />
+              ) : (
+                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#4a4a4a]">
+                  <FileText size={20} className="text-slate-300" />
+                </div>
+              )}
+
+              <div className="max-w-[160px] truncate">
+                <p className="truncate font-medium text-slate-200">
+                  {selectedFile.name}
+                </p>
+                <p className="text-[10px] text-slate-400">
+                  {(selectedFile.size / (1024 * 1024)).toFixed(2)} MB
+                </p>
+              </div>
+
+              {/* Remove File Button */}
+              <button
+                type="button"
+                onClick={removeSelectedFile}
+                className="
+                  absolute
+                  right-1.5
+                  top-1.5
+                  flex
+                  h-5
+                  w-5
+                  items-center
+                  justify-center
+                  rounded-full
+                  bg-[#4e4e4e]
+                  text-slate-300
+                  transition
+                  hover:bg-[#606060]
+                  hover:text-white
+                "
+              >
+                <X size={12} />
+              </button>
+            </div>
+          </div>
+        )}
+
         {/* Input Bar Container */}
         <div className="flex items-end gap-2">
           
@@ -234,7 +312,7 @@ const PromptInput = () => {
           <div className="flex-shrink-0 mb-0.5">
             <SendButton
               onClick={handleSend}
-              disabled={loadingMessage || !prompt.trim()}
+              disabled={loadingMessage || (!prompt.trim() && !selectedFile)}
             />
           </div>
 
