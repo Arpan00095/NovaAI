@@ -15,7 +15,7 @@ const apiKeys = [
 let currentKeyIndex = 0;
 
 // Supported models for fallback strategy
-const MODELS = ["gemini-2.0-flash", "gemini-1.5-flash"];
+const MODELS = ["gemini-2.0-flash", "gemini-2.0-flash-lite"];
 let currentModelIndex = 0;
 
 // Helper: Active Key ke sath GoogleGenAI Client return karega
