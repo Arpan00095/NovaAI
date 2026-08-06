@@ -4,43 +4,39 @@ import { detectIntent } from "./intent.service.js";
 import { aiToolRouter } from "../router/ai.tool.router.js";
 import { SYSTEM_PROMPTS } from "../prompts/systemPrompts.js";
 
-// Multiple API Keys Pool (4 Keys Supported)
+// Clean and filter valid non-empty API keys
 const apiKeys = [
   env.GEMINI_API_KEY_1,
   env.GEMINI_API_KEY_2,
   env.GEMINI_API_KEY_3,
   env.GEMINI_API_KEY_4,
-].filter(Boolean); // Only valid non-empty keys keep karega
+  process.env.GEMINI_API_KEY,
+].filter((key) => key && key.trim().length > 0);
 
 let currentKeyIndex = 0;
+const MODEL_NAME = "gemini-2.0-flash";
 
-// Supported models for fallback strategy
-const MODELS = ["gemini-2.0-flash", "gemini-2.0-flash-lite"];
-let currentModelIndex = 0;
-
-// Helper: Active Key ke sath GoogleGenAI Client return karega
+// Get AI Client instance dynamically
 const getAIClient = () => {
+  if (apiKeys.length === 0) {
+    throw new Error("No valid Gemini API keys found in environment variables.");
+  }
   const activeKey = apiKeys[currentKeyIndex % apiKeys.length];
   return new GoogleGenAI({ apiKey: activeKey });
 };
 
-// Helper: 429 Rate Limit aane par Next Key & Model par switch karega
-const rotateKeyAndModel = () => {
+// Rotate key on 429 rate limit
+const rotateKey = () => {
   if (apiKeys.length > 1) {
     currentKeyIndex = (currentKeyIndex + 1) % apiKeys.length;
-    console.warn(`[Gemini API] Rotating to API Key #${currentKeyIndex + 1}`);
+    console.warn(`[Gemini API] Switching to Key Index #${currentKeyIndex + 1}`);
   }
-  // Alternate model on rate limits to bypass model-specific quotas
-  currentModelIndex = (currentModelIndex + 1) % MODELS.length;
 };
 
-// -----------------------------
-// Auto-Retry, Key Rotation & Model Fallback Wrapper
-// -----------------------------
-const executeWithRetry = async (fn, retries = 4, delay = 2000) => {
+// Execute request with retry mechanism
+const executeWithRetry = async (fn, retries = apiKeys.length || 3, delay = 1500) => {
   try {
-    const activeModel = MODELS[currentModelIndex % MODELS.length];
-    return await fn(getAIClient(), activeModel);
+    return await fn(getAIClient());
   } catch (error) {
     const isRateLimit =
       error.status === 429 ||
@@ -48,10 +44,8 @@ const executeWithRetry = async (fn, retries = 4, delay = 2000) => {
       error.message?.includes("RESOURCE_EXHAUSTED");
 
     if (isRateLimit && retries > 0) {
-      console.warn(
-        `[Gemini API Rate Limit 429] Rotating key & switching model... (${retries} attempts left)`
-      );
-      rotateKeyAndModel();
+      console.warn(`[Gemini API 429 Rate Limit] Retrying with next key... (${retries} retries left)`);
+      rotateKey();
       await new Promise((res) => setTimeout(res, delay));
       return executeWithRetry(fn, retries - 1, delay);
     }
@@ -59,9 +53,7 @@ const executeWithRetry = async (fn, retries = 4, delay = 2000) => {
   }
 };
 
-// -----------------------------
-// Build Conversation (Multimodal Supported)
-// -----------------------------
+// Build conversation history
 const buildConversation = (
   message,
   history = [],
@@ -71,39 +63,16 @@ const buildConversation = (
   fileType = null
 ) => {
   const engine = aiToolRouter(intent);
-
-  const systemPrompt =
-    engine?.prompt || SYSTEM_PROMPTS.general;
+  const systemPrompt = engine?.prompt || SYSTEM_PROMPTS.general;
 
   const memoryPrompt =
     memories.length > 0
-      ? `
-Known facts about this user:
-
-${memories
-  .map(
-    (m) =>
-      `- ${m.memory_key}: ${m.memory_value}`
-  )
-  .join("\n")}
-
-Use these facts whenever they are relevant.
-
-Do not mention these memories unless the user asks or they naturally help answer the question.
-`
+      ? `\nKnown facts about this user:\n${memories.map((m) => `- ${m.memory_key}: ${m.memory_value}`).join("\n")}\n`
       : "";
 
   const geminiHistory = history.map((msg) => ({
-    role:
-      msg.role === "assistant"
-        ? "model"
-        : "user",
-
-    parts: [
-      {
-        text: msg.content || "",
-      },
-    ],
+    role: msg.role === "assistant" ? "model" : "user",
+    parts: [{ text: msg.content || "" }],
   }));
 
   const currentParts = [];
@@ -119,27 +88,15 @@ Do not mention these memories unless the user asks or they naturally help answer
   }
 
   if (message) {
-    currentParts.push({
-      text: message,
-    });
+    currentParts.push({ text: message });
   }
 
   return [
     {
       role: "user",
-      parts: [
-        {
-          text: `
-${systemPrompt}
-
-${memoryPrompt}
-`,
-        },
-      ],
+      parts: [{ text: `\n${systemPrompt}\n\n${memoryPrompt}\n` }],
     },
-
     ...geminiHistory,
-
     {
       role: "user",
       parts: currentParts,
@@ -147,49 +104,26 @@ ${memoryPrompt}
   ];
 };
 
-// -----------------------------
-// Generate Conversation Title
-// -----------------------------
+// Title Generator
 export const generateConversationTitle = async (message) => {
   try {
     const textPrompt = message || "Image analysis conversation";
 
-    const response = await executeWithRetry((aiClient, model) =>
+    const response = await executeWithRetry((aiClient) =>
       aiClient.models.generateContent({
-        model: model,
-        contents: `
-Generate a very short conversation title.
-
-Rules:
-- Maximum 5 words
-- No quotes
-- No punctuation at the end
-- Capitalize naturally
-- Return ONLY the title
-
-User Message:
-${textPrompt}
-`,
+        model: MODEL_NAME,
+        contents: `Generate a short conversation title (max 5 words, no quotes): ${textPrompt}`,
       })
     );
 
-    return (
-      response.text?.trim() ||
-      textPrompt.substring(0, 40)
-    );
+    return response.text?.trim() || textPrompt.substring(0, 40);
   } catch (err) {
-    console.error(
-      "Title Generation Error:",
-      err.message
-    );
-
+    console.error("Title Generation Error:", err.message);
     return message ? message.substring(0, 40) : "New Chat";
   }
 };
 
-// -----------------------------
-// Normal Chat (Multimodal)
-// -----------------------------
+// Normal Chat
 export const chatWithAI = async (
   message,
   history = [],
@@ -198,32 +132,19 @@ export const chatWithAI = async (
   fileType = null
 ) => {
   const intent = detectIntent(message || "");
+  const conversation = buildConversation(message, history, memories, intent, file, fileType);
 
-  const conversation = buildConversation(
-    message,
-    history,
-    memories,
-    intent,
-    file,
-    fileType
-  );
-
-  const response = await executeWithRetry((aiClient, model) =>
+  const response = await executeWithRetry((aiClient) =>
     aiClient.models.generateContent({
-      model: model,
+      model: MODEL_NAME,
       contents: conversation,
     })
   );
 
-  return {
-    intent,
-    text: response.text,
-  };
+  return { intent, text: response.text };
 };
 
-// -----------------------------
-// Streaming Chat (Multimodal)
-// -----------------------------
+// Streaming Chat
 export const chatWithAIStream = async (
   message,
   history = [],
@@ -232,25 +153,14 @@ export const chatWithAIStream = async (
   fileType = null
 ) => {
   const intent = detectIntent(message || "");
+  const conversation = buildConversation(message, history, memories, intent, file, fileType);
 
-  const conversation = buildConversation(
-    message,
-    history,
-    memories,
-    intent,
-    file,
-    fileType
-  );
-
-  const stream = await executeWithRetry((aiClient, model) =>
+  const stream = await executeWithRetry((aiClient) =>
     aiClient.models.generateContentStream({
-      model: model,
+      model: MODEL_NAME,
       contents: conversation,
     })
   );
 
-  return {
-    intent,
-    stream,
-  };
+  return { intent, stream };
 };
