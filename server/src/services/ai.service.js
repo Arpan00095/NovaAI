@@ -4,49 +4,38 @@ import { detectIntent } from "./intent.service.js";
 import { aiToolRouter } from "../router/ai.tool.router.js";
 import { SYSTEM_PROMPTS } from "../prompts/systemPrompts.js";
 
-// Clean and collect all valid non-empty API keys
+// Clean API Keys Array
 const rawKeys = [
   env.GEMINI_API_KEY_1,
   env.GEMINI_API_KEY_2,
   env.GEMINI_API_KEY_3,
   env.GEMINI_API_KEY_4,
-  process.env.GEMINI_API_KEY_1,
   process.env.GEMINI_API_KEY,
 ];
 
-// Remove duplicates and empty values
 const apiKeys = [...new Set(rawKeys)].filter(
   (key) => key && typeof key === "string" && key.trim().length > 10
 );
 
-console.log(`[Gemini API Setup] Total Valid API Keys Loaded: ${apiKeys.length}`);
-
 let currentKeyIndex = 0;
 const MODEL_NAME = "gemini-2.0-flash";
 
-// Get AI Client instance dynamically
 const getAIClient = () => {
   if (apiKeys.length === 0) {
-    throw new Error("CRITICAL: No valid Gemini API key found in Environment Variables!");
+    throw new Error("No valid Gemini API key found!");
   }
   const activeKey = apiKeys[currentKeyIndex % apiKeys.length];
-  const maskedKey = `${activeKey.substring(0, 6)}...${activeKey.slice(-4)}`;
-  console.log(`[Gemini API] Using Key Index #${(currentKeyIndex % apiKeys.length) + 1} (${maskedKey})`);
   return new GoogleGenAI({ apiKey: activeKey });
 };
 
-// Rotate key on 429 rate limit
 const rotateKey = () => {
   if (apiKeys.length > 1) {
     currentKeyIndex = (currentKeyIndex + 1) % apiKeys.length;
-    console.warn(`[Gemini API] Rotated to Next Key Index #${(currentKeyIndex % apiKeys.length) + 1}`);
-  } else {
-    console.error("[Gemini API Warning] Only 1 API key available. Cannot rotate!");
+    console.warn(`[Gemini API] Switched to Key Index #${(currentKeyIndex % apiKeys.length) + 1}`);
   }
 };
 
-// Execute request with retry mechanism
-const executeWithRetry = async (fn, retries = Math.max(apiKeys.length, 3), delay = 1500) => {
+const executeWithRetry = async (fn, retries = apiKeys.length || 3, delay = 2000) => {
   try {
     return await fn(getAIClient());
   } catch (error) {
@@ -56,7 +45,7 @@ const executeWithRetry = async (fn, retries = Math.max(apiKeys.length, 3), delay
       error.message?.includes("RESOURCE_EXHAUSTED");
 
     if (isRateLimit && retries > 0) {
-      console.warn(`[Gemini API 429 Rate Limit] Switching key and retrying... (${retries} attempts left)`);
+      console.warn(`[Gemini API 429] Rotating key and retrying... (${retries} attempts left)`);
       rotateKey();
       await new Promise((res) => setTimeout(res, delay));
       return executeWithRetry(fn, retries - 1, delay);
@@ -65,7 +54,6 @@ const executeWithRetry = async (fn, retries = Math.max(apiKeys.length, 3), delay
   }
 };
 
-// Build conversation history
 const buildConversation = (
   message,
   history = [],
@@ -116,23 +104,13 @@ const buildConversation = (
   ];
 };
 
-// Title Generator
+// FAST TITLE GENERATOR (No extra Gemini API call = Zero extra load!)
 export const generateConversationTitle = async (message) => {
-  try {
-    const textPrompt = message || "Image analysis conversation";
-
-    const response = await executeWithRetry((aiClient) =>
-      aiClient.models.generateContent({
-        model: MODEL_NAME,
-        contents: `Generate a short conversation title (max 5 words, no quotes): ${textPrompt}`,
-      })
-    );
-
-    return response.text?.trim() || textPrompt.substring(0, 40);
-  } catch (err) {
-    console.error("Title Generation Error:", err.message);
-    return message ? message.substring(0, 40) : "New Chat";
-  }
+  if (!message || message.trim() === "") return "New Conversation";
+  const cleanMessage = message.trim();
+  return cleanMessage.length > 30 
+    ? cleanMessage.substring(0, 30) + "..." 
+    : cleanMessage;
 };
 
 // Normal Chat
