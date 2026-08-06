@@ -10,7 +10,8 @@ const ai = new GoogleGenAI({
   apiKey: env.GEMINI_API_KEY,
 });
 
-const MODEL_NAME = "gemini-2.5-flash";
+// Official stable model for @google/genai SDK
+const MODEL_NAME = "gemini-2.0-flash";
 
 // -----------------------------
 // Build Conversation (Multimodal Supported)
