@@ -15,26 +15,24 @@ export const createConversation = async (
       .select()
       .single();
 
-
     if (error) {
       throw error;
     }
 
     return data;
-
   } catch (err) {
-
     console.error("FULL ERROR:");
     console.error(err);
-
     throw err;
   }
 };
-// Save Message
+
+// Save Message (Updated to handle image_url)
 export const saveMessage = async (
   conversationId,
   role,
-  content
+  content,
+  imageUrl = null // Yahan hum optional imageUrl receive kar rahe hain
 ) => {
   const { data, error } = await supabase
     .from("conversation_messages")
@@ -42,6 +40,7 @@ export const saveMessage = async (
       conversation_id: conversationId,
       role,
       content,
+      image_url: imageUrl, // Aur yahan table column me save kar rahe hain
     })
     .select()
     .single();
@@ -210,11 +209,9 @@ export const togglePinConversation = async (
   return data;
 };
 
-
-  // ==========================
+// ==========================
 // Archive / Restore Conversation
 // ==========================
-
 export const toggleArchiveConversation = async (
   conversationId,
   isArchived
@@ -236,10 +233,9 @@ export const toggleArchiveConversation = async (
   return data;
 };
 
-  // ======================================
+// ======================================
 // Create Share Token
 // ======================================
-
 export const createShareToken = async (
   conversationId,
   shareToken
@@ -264,45 +260,32 @@ export const createShareToken = async (
 // ======================================
 // Get Shared Conversation
 // ======================================
+export const getConversationByShareToken = async (shareToken) => {
+  // Get Conversation
+  const { data: conversation, error } = await supabase
+    .from("conversations")
+    .select("*")
+    .eq("share_token", shareToken)
+    .single();
 
-export const getConversationByShareToken =
-  async (shareToken) => {
-    // Get Conversation
-    const {
-      data: conversation,
-      error,
-    } = await supabase
-      .from("conversations")
-      .select("*")
-      .eq("share_token", shareToken)
-      .single();
+  if (error || !conversation) {
+    throw new Error("Shared conversation not found");
+  }
 
-    if (error || !conversation) {
-      throw new Error(
-        "Shared conversation not found"
-      );
-    }
+  // Get Messages
+  const { data: messages, error: msgError } = await supabase
+    .from("conversation_messages")
+    .select("*")
+    .eq("conversation_id", conversation.id)
+    .order("created_at", {
+      ascending: true,
+    });
 
-    // Get Messages
-    const {
-      data: messages,
-      error: msgError,
-    } = await supabase
-      .from("conversation_messages")
-      .select("*")
-      .eq(
-        "conversation_id",
-        conversation.id
-      )
-      .order("created_at", {
-        ascending: true,
-      });
+  if (msgError) {
+    throw new Error(msgError.message);
+  }
 
-    if (msgError) {
-      throw new Error(msgError.message);
-    }
+  conversation.messages = messages;
 
-    conversation.messages = messages;
-
-    return conversation;
-  };
+  return conversation;
+};

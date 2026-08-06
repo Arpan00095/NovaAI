@@ -1,3 +1,4 @@
+import { createClient } from "@supabase/supabase-js";
 import {
   chatWithAI,
   chatWithAIStream,
@@ -20,15 +21,55 @@ import {
 } from "../services/memory.service.js";
 
 // ======================================================
+// SUPABASE SETUP
+// ======================================================
+const supabaseUrl = process.env.SUPABASE_URL;
+const supabaseKey = process.env.SUPABASE_KEY; // Use Service Role Key or Anon Key
+const supabase = createClient(supabaseUrl, supabaseKey);
+
+const uploadImageToSupabase = async (base64File, fileType) => {
+  try {
+    // 1. Remove Base64 Header (e.g., data:image/png;base64,...)
+    const base64Data = base64File.includes(",") 
+      ? base64File.split(",")[1] 
+      : base64File;
+    
+    // 2. Convert to Buffer
+    const buffer = Buffer.from(base64Data, "base64");
+    
+    // 3. Generate Unique Filename
+    const fileName = `chats/${Date.now()}-${Math.random().toString(36).substring(7)}.png`;
+
+    // 4. Upload to Supabase Storage Bucket ('chat-images')
+    const { data, error } = await supabase.storage
+      .from("chat-images")
+      .upload(fileName, buffer, {
+        contentType: fileType || "image/png",
+        upsert: false,
+      });
+
+    if (error) throw error;
+
+    // 5. Get Public URL
+    const { data: urlData } = supabase.storage
+      .from("chat-images")
+      .getPublicUrl(fileName);
+
+    return urlData.publicUrl;
+  } catch (error) {
+    console.error("Supabase Upload Error:", error);
+    return null;
+  }
+};
+
+// ======================================================
 // NORMAL CHAT
 // ======================================================
 
 export const chat = async (req, res) => {
   try {
-    // 1. EXTRACT FILE & FILETYPE
     const { message, conversationId, file, fileType } = req.body;
 
-    // 2. ALLOW IF EITHER MESSAGE OR FILE EXISTS
     if (!message?.trim() && !file) {
       return res.status(400).json({
         success: false,
@@ -45,8 +86,8 @@ export const chat = async (req, res) => {
         message,
         [],
         [],
-        file,        // Pass file
-        fileType     // Pass fileType
+        file,
+        fileType
       );
 
       return res.json({
@@ -78,15 +119,20 @@ export const chat = async (req, res) => {
       currentConversationId
     );
 
-    // Note: Agar aap image database me save karna chahte hain, 
-    // toh saveMessage API/Function me fileBase64 bhi pass karna hoga.
+    // Upload Image if it exists
+    let uploadedImageUrl = null;
+    if (file) {
+      uploadedImageUrl = await uploadImageToSupabase(file, fileType);
+    }
+
+    // Note: Update saveMessage in conversation.service.js to accept the 4th parameter (imageUrl)
     await saveMessage(
       currentConversationId,
       "user",
-      message
+      message,
+      uploadedImageUrl 
     );
 
-    // Memory Extraction (Only if text message exists)
     if (message) {
       const extractedMemories = extractMemory(message);
 
@@ -98,10 +144,7 @@ export const chat = async (req, res) => {
             memory.value
           );
         } catch (err) {
-          console.error(
-            "Memory Save Error:",
-            err.message
-          );
+          console.error("Memory Save Error:", err.message);
         }
       }
     }
@@ -112,8 +155,8 @@ export const chat = async (req, res) => {
       message,
       history,
       storedMemories,
-      file,        // Pass file
-      fileType     // Pass fileType
+      file,
+      fileType
     );
 
     await saveMessage(
@@ -158,10 +201,8 @@ export const chat = async (req, res) => {
 
 export const streamChat = async (req, res) => {
   try {
-    // 1. EXTRACT FILE & FILETYPE
     const { message, conversationId, file, fileType } = req.body;
 
-    // 2. ALLOW IF EITHER MESSAGE OR FILE EXISTS
     if (!message?.trim() && !file) {
       return res.status(400).json({
         success: false,
@@ -182,8 +223,8 @@ export const streamChat = async (req, res) => {
         message,
         [],
         [],
-        file,        // Pass file
-        fileType     // Pass fileType
+        file,
+        fileType
       );
 
       for await (const chunk of aiResult.stream) {
@@ -222,15 +263,18 @@ export const streamChat = async (req, res) => {
       currentConversationId
     );
 
+    // Upload Image if it exists
+    let uploadedImageUrl = null;
+    if (file) {
+      uploadedImageUrl = await uploadImageToSupabase(file, fileType);
+    }
+
     await saveMessage(
       currentConversationId,
       "user",
-      message
+      message,
+      uploadedImageUrl // URL save ki ja rahi hai
     );
-
-    // -------------------------
-    // Memory Extraction
-    // -------------------------
 
     if (message) {
       const extractedMemories = extractMemory(message);
@@ -250,7 +294,6 @@ export const streamChat = async (req, res) => {
 
     const storedMemories = await getMemories(req.user.id);
 
-    // PASSED FILE AND FILETYPE HERE
     const aiResult = await chatWithAIStream(
       message,
       history,
@@ -259,24 +302,15 @@ export const streamChat = async (req, res) => {
       fileType
     );
 
-    // -------------------------
-    // SSE Headers
-    // -------------------------
-
     res.setHeader("Content-Type", "text/event-stream");
     res.setHeader("Cache-Control", "no-cache");
     res.setHeader("Connection", "keep-alive");
-
-    // -------------------------
-    // Text Stream
-    // -------------------------
 
     let fullResponse = "";
 
     for await (const chunk of aiResult.stream) {
       const text = chunk.text || "";
       fullResponse += text;
-
       res.write(`data: ${JSON.stringify({ text })}\n\n`);
     }
 
@@ -310,7 +344,6 @@ export const streamChat = async (req, res) => {
 
   } catch (error) {
     console.error(error);
-
     let message = "Something went wrong. Please try again.";
 
     if (
