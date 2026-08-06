@@ -25,12 +25,14 @@ import {
 
 export const chat = async (req, res) => {
   try {
-    const { message, conversationId } = req.body;
+    // 1. EXTRACT FILE & FILETYPE
+    const { message, conversationId, file, fileType } = req.body;
 
-    if (!message?.trim()) {
+    // 2. ALLOW IF EITHER MESSAGE OR FILE EXISTS
+    if (!message?.trim() && !file) {
       return res.status(400).json({
         success: false,
-        message: "Message is required",
+        message: "Message or image is required",
       });
     }
 
@@ -42,7 +44,9 @@ export const chat = async (req, res) => {
       const aiResult = await chatWithAI(
         message,
         [],
-        []
+        [],
+        file,        // Pass file
+        fileType     // Pass fileType
       );
 
       return res.json({
@@ -57,64 +61,60 @@ export const chat = async (req, res) => {
     // Logged In User
     // ====================================
 
-    let currentConversationId =
-      conversationId;
-
+    let currentConversationId = conversationId;
     let isNewConversation = false;
 
     if (!currentConversationId) {
-      const conversation =
-        await createConversation(
-          req.user.id,
-          "New Chat"
-        );
+      const conversation = await createConversation(
+        req.user.id,
+        "New Chat"
+      );
 
-      currentConversationId =
-        conversation.id;
-
+      currentConversationId = conversation.id;
       isNewConversation = true;
     }
 
-    const history =
-      await getConversationMessages(
-        currentConversationId
-      );
+    const history = await getConversationMessages(
+      currentConversationId
+    );
 
+    // Note: Agar aap image database me save karna chahte hain, 
+    // toh saveMessage API/Function me fileBase64 bhi pass karna hoga.
     await saveMessage(
       currentConversationId,
       "user",
       message
     );
 
-    // Memory
+    // Memory Extraction (Only if text message exists)
+    if (message) {
+      const extractedMemories = extractMemory(message);
 
-    const extractedMemories =
-      extractMemory(message);
-
-    for (const memory of extractedMemories) {
-      try {
-        await saveMemory(
-          req.user.id,
-          memory.key,
-          memory.value
-        );
-      } catch (err) {
-        console.error(
-          "Memory Save Error:",
-          err.message
-        );
+      for (const memory of extractedMemories) {
+        try {
+          await saveMemory(
+            req.user.id,
+            memory.key,
+            memory.value
+          );
+        } catch (err) {
+          console.error(
+            "Memory Save Error:",
+            err.message
+          );
+        }
       }
     }
 
-    const storedMemories =
-      await getMemories(req.user.id);
+    const storedMemories = await getMemories(req.user.id);
 
-    const aiResult =
-      await chatWithAI(
-        message,
-        history,
-        storedMemories
-      );
+    const aiResult = await chatWithAI(
+      message,
+      history,
+      storedMemories,
+      file,        // Pass file
+      fileType     // Pass fileType
+    );
 
     await saveMessage(
       currentConversationId,
@@ -123,10 +123,9 @@ export const chat = async (req, res) => {
     );
 
     if (isNewConversation) {
-      const title =
-        await generateConversationTitle(
-          message
-        );
+      const title = await generateConversationTitle(
+        message || "Image uploaded"
+      );
 
       await updateConversationTitle(
         currentConversationId,
@@ -134,30 +133,22 @@ export const chat = async (req, res) => {
       );
     }
 
-    await touchConversation(
-      currentConversationId
-    );
+    await touchConversation(currentConversationId);
 
     return res.json({
       success: true,
-      conversationId:
-        currentConversationId,
+      conversationId: currentConversationId,
       response: aiResult.text,
       intent: aiResult.intent,
     });
 
   } catch (error) {
-
-    console.error(
-      "AI Controller Error:",
-      error
-    );
+    console.error("AI Controller Error:", error);
 
     return res.status(500).json({
       success: false,
       message: error.message,
     });
-
   }
 };
 
@@ -165,20 +156,16 @@ export const chat = async (req, res) => {
 // STREAM CHAT
 // ======================================================
 
-export const streamChat = async (
-  req,
-  res
-) => {
+export const streamChat = async (req, res) => {
   try {
-    const {
-      message,
-      conversationId,
-    } = req.body;
+    // 1. EXTRACT FILE & FILETYPE
+    const { message, conversationId, file, fileType } = req.body;
 
-    if (!message?.trim()) {
+    // 2. ALLOW IF EITHER MESSAGE OR FILE EXISTS
+    if (!message?.trim() && !file) {
       return res.status(400).json({
         success: false,
-        message: "Message is required",
+        message: "Message or image is required",
       });
     }
 
@@ -187,36 +174,21 @@ export const streamChat = async (
     // ====================================
 
     if (!req.user) {
-      res.setHeader(
-        "Content-Type",
-        "text/event-stream"
-      );
+      res.setHeader("Content-Type", "text/event-stream");
+      res.setHeader("Cache-Control", "no-cache");
+      res.setHeader("Connection", "keep-alive");
 
-      res.setHeader(
-        "Cache-Control",
-        "no-cache"
+      const aiResult = await chatWithAIStream(
+        message,
+        [],
+        [],
+        file,        // Pass file
+        fileType     // Pass fileType
       );
-
-      res.setHeader(
-        "Connection",
-        "keep-alive"
-      );
-
-      const aiResult =
-        await chatWithAIStream(
-          message,
-          [],
-          []
-        );
 
       for await (const chunk of aiResult.stream) {
         const text = chunk.text || "";
-
-        res.write(
-          `data: ${JSON.stringify({
-            text,
-          })}\n\n`
-        );
+        res.write(`data: ${JSON.stringify({ text })}\n\n`);
       }
 
       res.write(
@@ -233,28 +205,22 @@ export const streamChat = async (
     // Logged In User
     // ====================================
 
-    let currentConversationId =
-      conversationId;
-
+    let currentConversationId = conversationId;
     let isNewConversation = false;
 
     if (!currentConversationId) {
-      const conversation =
-        await createConversation(
-          req.user.id,
-          "New Chat"
-        );
+      const conversation = await createConversation(
+        req.user.id,
+        "New Chat"
+      );
 
-      currentConversationId =
-        conversation.id;
-
+      currentConversationId = conversation.id;
       isNewConversation = true;
     }
 
-    const history =
-      await getConversationMessages(
-        currentConversationId
-      );
+    const history = await getConversationMessages(
+      currentConversationId
+    );
 
     await saveMessage(
       currentConversationId,
@@ -266,49 +232,40 @@ export const streamChat = async (
     // Memory Extraction
     // -------------------------
 
-    const extractedMemories =
-      extractMemory(message);
+    if (message) {
+      const extractedMemories = extractMemory(message);
 
-    for (const memory of extractedMemories) {
-      try {
-        await saveMemory(
-          req.user.id,
-          memory.key,
-          memory.value
-        );
-      } catch (err) {
-        console.error(err.message);
+      for (const memory of extractedMemories) {
+        try {
+          await saveMemory(
+            req.user.id,
+            memory.key,
+            memory.value
+          );
+        } catch (err) {
+          console.error(err.message);
+        }
       }
     }
 
-    const storedMemories =
-      await getMemories(req.user.id);
+    const storedMemories = await getMemories(req.user.id);
 
-    const aiResult =
-      await chatWithAIStream(
-        message,
-        history,
-        storedMemories
-      );
+    // PASSED FILE AND FILETYPE HERE
+    const aiResult = await chatWithAIStream(
+      message,
+      history,
+      storedMemories,
+      file,
+      fileType
+    );
 
     // -------------------------
     // SSE Headers
     // -------------------------
 
-    res.setHeader(
-      "Content-Type",
-      "text/event-stream"
-    );
-
-    res.setHeader(
-      "Cache-Control",
-      "no-cache"
-    );
-
-    res.setHeader(
-      "Connection",
-      "keep-alive"
-    );
+    res.setHeader("Content-Type", "text/event-stream");
+    res.setHeader("Cache-Control", "no-cache");
+    res.setHeader("Connection", "keep-alive");
 
     // -------------------------
     // Text Stream
@@ -317,18 +274,10 @@ export const streamChat = async (
     let fullResponse = "";
 
     for await (const chunk of aiResult.stream) {
-
-      const text =
-        chunk.text || "";
-
+      const text = chunk.text || "";
       fullResponse += text;
 
-      res.write(
-        `data: ${JSON.stringify({
-          text,
-        })}\n\n`
-      );
-
+      res.write(`data: ${JSON.stringify({ text })}\n\n`);
     }
 
     await saveMessage(
@@ -338,10 +287,9 @@ export const streamChat = async (
     );
 
     if (isNewConversation) {
-      const title =
-        await generateConversationTitle(
-          message
-        );
+      const title = await generateConversationTitle(
+        message || "Image uploaded"
+      );
 
       await updateConversationTitle(
         currentConversationId,
@@ -349,15 +297,12 @@ export const streamChat = async (
       );
     }
 
-    await touchConversation(
-      currentConversationId
-    );
+    await touchConversation(currentConversationId);
 
     res.write(
       `data: ${JSON.stringify({
         done: true,
-        conversationId:
-          currentConversationId,
+        conversationId: currentConversationId,
       })}\n\n`
     );
 
@@ -366,8 +311,7 @@ export const streamChat = async (
   } catch (error) {
     console.error(error);
 
-    let message =
-      "Something went wrong. Please try again.";
+    let message = "Something went wrong. Please try again.";
 
     if (
       error.message?.includes("RESOURCE_EXHAUSTED") ||
@@ -375,38 +319,23 @@ export const streamChat = async (
       error.message?.includes("429")
     ) {
       let retryText = "a few minutes";
-
-      const retryMatch =
-        error.message?.match(
-          /"retryDelay":\s*"(\d+)s"/
-        );
+      const retryMatch = error.message?.match(/"retryDelay":\s*"(\d+)s"/);
 
       if (retryMatch) {
         const seconds = Number(retryMatch[1]);
-
         if (seconds < 60) {
           retryText = `${seconds} seconds`;
         } else if (seconds < 3600) {
-          retryText = `${Math.ceil(
-            seconds / 60
-          )} minutes`;
+          retryText = `${Math.ceil(seconds / 60)} minutes`;
         } else {
-          retryText = `${Math.ceil(
-            seconds / 3600
-          )} hour(s)`;
+          retryText = `${Math.ceil(seconds / 3600)} hour(s)`;
         }
       }
 
-      message =
-        `NovaAI has reached its free AI limit. Please try again after ${retryText}.`;
+      message = `NovaAI has reached its free AI limit. Please try again after ${retryText}.`;
     }
 
-    res.write(
-      `data: ${JSON.stringify({
-        error: message,
-      })}\n\n`
-    );
-
+    res.write(`data: ${JSON.stringify({ error: message })}\n\n`);
     res.end();
   }
 };

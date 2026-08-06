@@ -43,16 +43,25 @@ const MessageBubble = ({ message }) => {
             : "text-slate-100"
         }`}
       >
-        {/* USER MESSAGE */}
-
+        {/* USER MESSAGE (With Image + Text Support) */}
         {isUser && (
-          <div className="whitespace-pre-wrap leading-7">
-            {message.content}
+          <div className="flex flex-col gap-2">
+            {message.image && (
+              <img
+                src={message.image}
+                alt="User upload"
+                className="max-h-72 w-auto max-w-full rounded-2xl border border-blue-400/30 object-cover shadow-md"
+              />
+            )}
+            {message.content && (
+              <div className="whitespace-pre-wrap leading-7">
+                {message.content}
+              </div>
+            )}
           </div>
         )}
 
-        {/* IMAGE */}
-
+        {/* AI GENERATED IMAGE */}
         {!isUser && message.image && (
           <img
             src={message.image}
@@ -67,8 +76,7 @@ const MessageBubble = ({ message }) => {
           />
         )}
 
-        {/* ASSISTANT */}
-
+        {/* ASSISTANT TEXT RESPONSE */}
         {!isUser && !message.image && (
           <>
             <div
@@ -137,7 +145,6 @@ const MessageBubble = ({ message }) => {
             </div>
 
             {/* Actions */}
-
             <div
               className="
                 mt-3
