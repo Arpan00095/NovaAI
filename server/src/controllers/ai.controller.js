@@ -1,4 +1,5 @@
-import { createClient } from "@supabase/supabase-js";
+import supabase from "../config/supabase.js";
+
 import {
   chatWithAI,
   chatWithAIStream,
@@ -21,27 +22,18 @@ import {
 } from "../services/memory.service.js";
 
 // ======================================================
-// SUPABASE SETUP
+// HELPER: UPLOAD IMAGE TO SUPABASE STORAGE
 // ======================================================
-const supabaseUrl = process.env.SUPABASE_URL;
-const supabaseKey = process.env.SUPABASE_KEY; // Use Service Role Key or Anon Key
-const supabase = createClient(supabaseUrl, supabaseKey);
-
 const uploadImageToSupabase = async (base64File, fileType) => {
   try {
-    // 1. Remove Base64 Header (e.g., data:image/png;base64,...)
-    const base64Data = base64File.includes(",") 
-      ? base64File.split(",")[1] 
+    const base64Data = base64File.includes(",")
+      ? base64File.split(",")[1]
       : base64File;
-    
-    // 2. Convert to Buffer
+
     const buffer = Buffer.from(base64Data, "base64");
-    
-    // 3. Generate Unique Filename
     const fileName = `chats/${Date.now()}-${Math.random().toString(36).substring(7)}.png`;
 
-    // 4. Upload to Supabase Storage Bucket ('chat-images')
-    const { data, error } = await supabase.storage
+    const { error } = await supabase.storage
       .from("chat-images")
       .upload(fileName, buffer, {
         contentType: fileType || "image/png",
@@ -50,7 +42,6 @@ const uploadImageToSupabase = async (base64File, fileType) => {
 
     if (error) throw error;
 
-    // 5. Get Public URL
     const { data: urlData } = supabase.storage
       .from("chat-images")
       .getPublicUrl(fileName);
@@ -77,10 +68,7 @@ export const chat = async (req, res) => {
       });
     }
 
-    // ====================================
     // Guest Mode
-    // ====================================
-
     if (!req.user) {
       const aiResult = await chatWithAI(
         message,
@@ -98,10 +86,7 @@ export const chat = async (req, res) => {
       });
     }
 
-    // ====================================
     // Logged In User
-    // ====================================
-
     let currentConversationId = conversationId;
     let isNewConversation = false;
 
@@ -110,39 +95,30 @@ export const chat = async (req, res) => {
         req.user.id,
         "New Chat"
       );
-
       currentConversationId = conversation.id;
       isNewConversation = true;
     }
 
-    const history = await getConversationMessages(
-      currentConversationId
-    );
+    const history = await getConversationMessages(currentConversationId);
 
-    // Upload Image if it exists
+    // Upload image if provided
     let uploadedImageUrl = null;
     if (file) {
       uploadedImageUrl = await uploadImageToSupabase(file, fileType);
     }
 
-    // Note: Update saveMessage in conversation.service.js to accept the 4th parameter (imageUrl)
     await saveMessage(
       currentConversationId,
       "user",
       message,
-      uploadedImageUrl 
+      uploadedImageUrl
     );
 
     if (message) {
       const extractedMemories = extractMemory(message);
-
       for (const memory of extractedMemories) {
         try {
-          await saveMemory(
-            req.user.id,
-            memory.key,
-            memory.value
-          );
+          await saveMemory(req.user.id, memory.key, memory.value);
         } catch (err) {
           console.error("Memory Save Error:", err.message);
         }
@@ -169,11 +145,7 @@ export const chat = async (req, res) => {
       const title = await generateConversationTitle(
         message || "Image uploaded"
       );
-
-      await updateConversationTitle(
-        currentConversationId,
-        title
-      );
+      await updateConversationTitle(currentConversationId, title);
     }
 
     await touchConversation(currentConversationId);
@@ -184,10 +156,8 @@ export const chat = async (req, res) => {
       response: aiResult.text,
       intent: aiResult.intent,
     });
-
   } catch (error) {
     console.error("AI Controller Error:", error);
-
     return res.status(500).json({
       success: false,
       message: error.message,
@@ -210,10 +180,7 @@ export const streamChat = async (req, res) => {
       });
     }
 
-    // ====================================
     // Guest Mode
-    // ====================================
-
     if (!req.user) {
       res.setHeader("Content-Type", "text/event-stream");
       res.setHeader("Cache-Control", "no-cache");
@@ -242,10 +209,7 @@ export const streamChat = async (req, res) => {
       return res.end();
     }
 
-    // ====================================
     // Logged In User
-    // ====================================
-
     let currentConversationId = conversationId;
     let isNewConversation = false;
 
@@ -254,16 +218,13 @@ export const streamChat = async (req, res) => {
         req.user.id,
         "New Chat"
       );
-
       currentConversationId = conversation.id;
       isNewConversation = true;
     }
 
-    const history = await getConversationMessages(
-      currentConversationId
-    );
+    const history = await getConversationMessages(currentConversationId);
 
-    // Upload Image if it exists
+    // Upload image if provided
     let uploadedImageUrl = null;
     if (file) {
       uploadedImageUrl = await uploadImageToSupabase(file, fileType);
@@ -273,19 +234,14 @@ export const streamChat = async (req, res) => {
       currentConversationId,
       "user",
       message,
-      uploadedImageUrl // URL save ki ja rahi hai
+      uploadedImageUrl
     );
 
     if (message) {
       const extractedMemories = extractMemory(message);
-
       for (const memory of extractedMemories) {
         try {
-          await saveMemory(
-            req.user.id,
-            memory.key,
-            memory.value
-          );
+          await saveMemory(req.user.id, memory.key, memory.value);
         } catch (err) {
           console.error(err.message);
         }
@@ -324,11 +280,7 @@ export const streamChat = async (req, res) => {
       const title = await generateConversationTitle(
         message || "Image uploaded"
       );
-
-      await updateConversationTitle(
-        currentConversationId,
-        title
-      );
+      await updateConversationTitle(currentConversationId, title);
     }
 
     await touchConversation(currentConversationId);
@@ -341,7 +293,6 @@ export const streamChat = async (req, res) => {
     );
 
     res.end();
-
   } catch (error) {
     console.error(error);
     let message = "Something went wrong. Please try again.";
