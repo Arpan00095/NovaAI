@@ -1,33 +1,25 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none">
-  <defs>
-    <!-- Gemini Dynamic Gradient -->
-    <linearGradient id="novaSparkle" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" stop-color="#38bdf8" />
-      <stop offset="50%" stop-color="#3b82f6" />
-      <stop offset="100%" stop-color="#a855f7" />
-    </linearGradient>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" fill="none">
+  <!-- Rounded Dark Box Container -->
+  <rect width="48" height="48" rx="14" fill="#1e1f20" stroke="#333537" stroke-width="1.5"/>
 
-    <!-- Mini Sparkle Gold Accent -->
-    <linearGradient id="goldAccent" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" stop-color="#f43f5e" />
-      <stop offset="100%" stop-color="#fbbf24" />
-    </linearGradient>
-  </defs>
-
-  <!-- Main Smooth AI Sparkle Icon -->
+  <!-- Main Curved 4-Point Sparkle Star -->
   <path 
-    d="M12 3c.132 0 .263 0 .393 0a7.5 7.5 0 0 0 7.92 7.92c0 .13 0 .261 0 .393a7.5 7.5 0 0 0-7.92 7.92c0 .13-.261.13-.393.13a7.5 7.5 0 0 0-7.92-7.92c0-.132 0-.263 0-.393A7.5 7.5 0 0 0 12 3z" 
-    fill="url(#novaSparkle)" 
-    fill-opacity="0.25"
-    stroke="url(#novaSparkle)" 
-    stroke-width="1.8" 
+    d="M24 13C24.8 18.5 29.5 23.2 35 24C29.5 24.8 24.8 29.5 24 35C23.2 29.5 18.5 24.8 13 24C18.5 23.2 23.2 18.5 24 13Z" 
+    stroke="#4285f4" 
+    stroke-width="3" 
     stroke-linecap="round" 
     stroke-linejoin="round"
+    fill="none"
   />
 
-  <!-- Top-Right Glowing Mini Sparkle (Upgraded from circle) -->
+  <!-- Top-Right Plus Icon (+) -->
   <path 
-    d="M19.5 3.5C19.7 4.8 20.7 5.8 22 6C20.7 6.2 19.7 7.2 19.5 8.5C19.3 7.2 18.3 6.2 17 6C18.3 5.8 19.3 4.8 19.5 3.5Z" 
-    fill="url(#goldAccent)" 
+    d="M32 15H36M34 13V17" 
+    stroke="#4285f4" 
+    stroke-width="2.5" 
+    stroke-linecap="round"
   />
+
+  <!-- Bottom-Left Circle Dot (•) -->
+  <circle cx="16" cy="32" r="2" fill="#4285f4" />
 </svg>
