@@ -1,5 +1,5 @@
 import { useContext, useEffect, useState } from "react";
-import { Plus } from "lucide-react";
+import { Plus, Search } from "lucide-react";
 
 import SidebarHeader from "./SidebarHeader";
 import SidebarSearch from "./SidebarSearch";
@@ -13,7 +13,6 @@ const Sidebar = ({
   setMobileOpen,
 }) => {
   const [collapsed, setCollapsed] = useState(false);
-
   const [search, setSearch] = useState("");
 
   const {
@@ -30,7 +29,6 @@ const Sidebar = ({
   return (
     <>
       {/* Mobile Overlay */}
-
       {mobileOpen && (
         <div
           className="fixed inset-0 z-40 bg-black/60 backdrop-blur-sm lg:hidden"
@@ -38,8 +36,7 @@ const Sidebar = ({
         />
       )}
 
-      {/* Sidebar */}
-
+      {/* Sidebar Container - BORDER NONE for Gemini Seamless Look */}
       <aside
         className={`
           fixed
@@ -49,9 +46,8 @@ const Sidebar = ({
           z-50
           flex
           flex-col
-          bg-[#171717]
-          border-r
-          border-slate-800
+          bg-[#131314]
+          border-none
           transition-all
           duration-300
           ease-in-out
@@ -62,10 +58,10 @@ const Sidebar = ({
           }
           ${
             collapsed
-              ? "lg:w-20"
-              : "lg:w-[280px]"
+              ? "lg:w-[64px]"
+              : "lg:w-[260px]"
           }
-          w-[280px]
+          w-[260px]
         `}
       >
         <SidebarHeader
@@ -74,38 +70,48 @@ const Sidebar = ({
           setMobileOpen={setMobileOpen}
         />
 
-        {/* New Chat */}
-
-        <div className="px-3 py-3">
-
+        {/* Action Buttons Area */}
+        <div className={`py-3 flex flex-col gap-2 ${collapsed ? "px-2 items-center" : "px-3"}`}>
+          {/* New Chat Button */}
           <button
             onClick={newChat}
-            className="
-              w-full
-              h-11
+            title="New Chat"
+            className={`
+              h-10
               rounded-xl
-              bg-[#202123]
-              hover:bg-[#2b2c2f]
-              transition
+              bg-white/5
+              hover:bg-white/10
+              transition-all
+              duration-200
               flex
               items-center
               justify-center
-              gap-2
+              gap-2.5
               text-white
               font-medium
-            "
+              ${collapsed ? "w-10 p-0" : "w-full px-3"}
+            `}
           >
-            <Plus size={18} />
+            <Plus size={18} className="shrink-0 text-slate-200" />
 
             {!collapsed && (
-              <span>New Chat</span>
+              <span className="text-sm truncate">New Chat</span>
             )}
           </button>
 
+          {/* Search Icon Shortcut when Collapsed (Opens Sidebar or Focuses Search) */}
+          {collapsed && (
+            <button
+              onClick={() => setCollapsed(false)}
+              title="Search"
+              className="h-10 w-10 rounded-xl flex items-center justify-center text-slate-400 hover:bg-white/5 hover:text-white transition"
+            >
+              <Search size={18} />
+            </button>
+          )}
         </div>
 
-        {/* Search */}
-
+        {/* Search Bar when Expanded */}
         {!collapsed && (
           <SidebarSearch
             search={search}
@@ -113,25 +119,20 @@ const Sidebar = ({
           />
         )}
 
-        {/* Conversation List */}
-
+        {/* Conversation List / Library */}
         <div className="flex-1 overflow-y-auto">
-
           <ConversationList
             collapsed={collapsed}
             conversations={conversations}
             loading={loadingConversations}
             search={search}
           />
-
         </div>
 
         {/* Footer */}
-
         <SidebarFooter
           collapsed={collapsed}
         />
-
       </aside>
     </>
   );

@@ -6,29 +6,22 @@ import ChatBody from "../components/workspace/Chat/ChatBody";
 import PromptInput from "../components/workspace/Prompt/PromptInput";
 
 const Workspace = () => {
-  const [mobileSidebarOpen, setMobileSidebarOpen] =
-    useState(false);
+  const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
 
   return (
-    <div className="flex h-screen bg-[#212121] overflow-hidden">
-
+    <div className="flex h-screen bg-[#131314] text-[#e3e3e3] overflow-hidden select-none">
       <Sidebar
         mobileOpen={mobileSidebarOpen}
         setMobileOpen={setMobileSidebarOpen}
       />
 
-      <div className="flex flex-col flex-1 min-w-0">
-
-        <ChatHeader
-          setMobileOpen={setMobileSidebarOpen}
-        />
+      <div className="flex flex-col flex-1 min-w-0 bg-[#131314] border-none shadow-none">
+        <ChatHeader setMobileOpen={setMobileSidebarOpen} />
 
         <ChatBody />
 
         <PromptInput />
-
       </div>
-
     </div>
   );
 };

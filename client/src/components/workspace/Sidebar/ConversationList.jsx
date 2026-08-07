@@ -1,11 +1,12 @@
 import { useContext } from "react";
+import { FolderClock } from "lucide-react";
 
 import { ConversationContext } from "../../../contexts/ConversationContext";
 import ConversationItem from "./ConversationItem";
 
 const DAY = 1000 * 60 * 60 * 24;
 
-const getGroups = (conversations) => {
+const getGroups = (conversations = []) => {
   const now = new Date();
 
   const groups = {
@@ -18,10 +19,7 @@ const getGroups = (conversations) => {
 
   conversations.forEach((chat) => {
     const date = new Date(chat.updated_at || chat.created_at);
-
-    const diff = Math.floor(
-      (now - date) / DAY
-    );
+    const diff = Math.floor((now - date) / DAY);
 
     if (diff === 0) {
       groups.Today.push(chat);
@@ -41,9 +39,9 @@ const getGroups = (conversations) => {
 
 const ConversationList = ({
   collapsed,
-  conversations,
+  conversations = [],
   loading,
-  search,
+  search = "",
 }) => {
   const {
     activeConversationId,
@@ -51,45 +49,45 @@ const ConversationList = ({
   } = useContext(ConversationContext);
 
   const filteredChats = conversations
-    .filter((chat) => !chat.is_archived)
+    .filter((chat) => !chat?.is_archived)
     .filter((chat) =>
-      chat.title
+      chat?.title
         ?.toLowerCase()
         .includes(search.toLowerCase())
     );
 
   const groupedChats = getGroups(filteredChats);
 
+  // Collapsed Mode: Single Clean Library Icon (Gemini Style)
   if (collapsed) {
+    const activeChat = filteredChats.find((c) => c.id === activeConversationId) || filteredChats[0];
+
     return (
-      <div className="flex-1 overflow-y-auto scroll-smooth px-2 py-4 space-y-2">
-        {filteredChats.map((chat) => (
-          <button
-            key={chat.id}
-            onClick={() =>
-              selectConversation(chat.id)
-            }
-            className={`
-              w-full
-              h-11
-              rounded-xl
-              flex
-              items-center
-              justify-center
-              transition
-              ${activeConversationId === chat.id
-                ? "bg-blue-600"
-                : "hover:bg-slate-800"
-              }
-            `}
-          >
-            💬
-          </button>
-        ))}
+      <div className="flex-1 flex flex-col items-center py-2 px-2 gap-2">
+        <button
+          onClick={() => activeChat && selectConversation(activeChat.id)}
+          title={activeChat ? activeChat.title : "Recent Chats"}
+          className="
+            h-10
+            w-10
+            rounded-xl
+            flex
+            items-center
+            justify-center
+            bg-[#282a2c]
+            text-white
+            shadow-sm
+            hover:bg-[#333537]
+            transition
+          "
+        >
+          <FolderClock size={18} className="text-blue-400" />
+        </button>
       </div>
     );
   }
 
+  // Expanded Mode: Full History List
   return (
     <div className="flex-1 overflow-y-auto scroll-smooth px-3 py-4">
       {loading && (
@@ -98,58 +96,35 @@ const ConversationList = ({
         </div>
       )}
 
-      {!loading &&
-        filteredChats.length === 0 && (
-          <div className="px-3 text-sm text-slate-500">
-            No conversations found
-          </div>
-        )}
+      {!loading && filteredChats.length === 0 && (
+        <div className="px-3 text-sm text-slate-500">
+          No conversations found
+        </div>
+      )}
 
       {!loading &&
-        Object.entries(groupedChats).map(
-          ([group, chats]) => {
-            if (chats.length === 0)
-              return null;
+        Object.entries(groupedChats).map(([group, chats]) => {
+          if (chats.length === 0) return null;
 
-            return (
-              <div
-                key={group}
-                className="mb-6"
-              >
-                <h3
-                  className="
-                    px-3
-                    mb-2
-                    text-xs
-                    uppercase
-                    tracking-wider
-                    text-slate-500
-                    font-semibold
-                  "
-                >
-                  {group}
-                </h3>
+          return (
+            <div key={group} className="mb-6">
+              <h3 className="px-3 mb-2 text-xs uppercase tracking-wider text-slate-500 font-semibold">
+                {group}
+              </h3>
 
-                <div className="space-y-1">
-                  {chats.map((chat) => (
-                    <ConversationItem
-                      key={chat.id}
-                      chat={chat}
-                      active={
-                        activeConversationId ===
-                        chat.id
-                      }
-                      onClick={() =>
-                        selectConversation(chat.id)
-                      }
-                    />
-                  ))}
-                </div>
+              <div className="space-y-1">
+                {chats.map((chat) => (
+                  <ConversationItem
+                    key={chat.id}
+                    chat={chat}
+                    active={activeConversationId === chat.id}
+                    onClick={() => selectConversation(chat.id)}
+                  />
+                ))}
               </div>
-            );
-          }
-        )}
-
+            </div>
+          );
+        })}
     </div>
   );
 };

@@ -31,17 +31,9 @@ const ConversationItem = ({
   const inputRef = useRef(null);
   const menuRef = useRef(null);
 
-  // ==========================
-  // Sync Title
-  // ==========================
-
   useEffect(() => {
     setTitle(chat.title);
   }, [chat.title]);
-
-  // ==========================
-  // Focus Input
-  // ==========================
 
   useEffect(() => {
     if (editing) {
@@ -49,10 +41,6 @@ const ConversationItem = ({
       inputRef.current?.select();
     }
   }, [editing]);
-
-  // ==========================
-  // Close Menu Outside Click
-  // ==========================
 
   useEffect(() => {
     const handleOutsideClick = (e) => {
@@ -64,29 +52,14 @@ const ConversationItem = ({
       }
     };
 
-    document.addEventListener(
-      "mousedown",
-      handleOutsideClick
-    );
-
-    return () =>
-      document.removeEventListener(
-        "mousedown",
-        handleOutsideClick
-      );
+    document.addEventListener("mousedown", handleOutsideClick);
+    return () => document.removeEventListener("mousedown", handleOutsideClick);
   }, []);
-
-  // ==========================
-  // Save Rename
-  // ==========================
 
   const saveRename = async () => {
     const newTitle = title.trim();
 
-    if (
-      !newTitle ||
-      newTitle === chat.title
-    ) {
+    if (!newTitle || newTitle === chat.title) {
       setTitle(chat.title);
       setEditing(false);
       return;
@@ -99,15 +72,8 @@ const ConversationItem = ({
     }
   };
 
-  // ==========================
-  // Delete Chat
-  // ==========================
-
   const handleDelete = async () => {
-    const ok = window.confirm(
-      "Delete this conversation?"
-    );
-
+    const ok = window.confirm("Delete this conversation?");
     if (!ok) return;
 
     await deleteChat(chat.id);
@@ -119,9 +85,7 @@ const ConversationItem = ({
       className="relative group"
     >
       <button
-        onClick={
-          editing ? undefined : onClick
-        }
+        onClick={editing ? undefined : onClick}
         className={`
           w-full
           flex
@@ -129,18 +93,18 @@ const ConversationItem = ({
           gap-3
           rounded-xl
           px-3
-          py-3
+          py-2.5
           text-left
           transition-all
           duration-200
           ${active
-            ? "bg-blue-600 text-white"
-            : "hover:bg-slate-800 text-slate-200"
+            ? "bg-[#282a2c] text-white font-medium border border-white/10"
+            : "hover:bg-white/5 text-slate-300"
           }
         `}
       >
         <MessageSquare
-          size={18}
+          size={17}
           className={
             active
               ? "text-white shrink-0"
@@ -152,15 +116,10 @@ const ConversationItem = ({
           <input
             ref={inputRef}
             value={title}
-            onChange={(e) =>
-              setTitle(e.target.value)
-            }
+            onChange={(e) => setTitle(e.target.value)}
             onBlur={saveRename}
             onKeyDown={(e) => {
-              if (e.key === "Enter") {
-                saveRename();
-              }
-
+              if (e.key === "Enter") saveRename();
               if (e.key === "Escape") {
                 setTitle(chat.title);
                 setEditing(false);
@@ -171,16 +130,15 @@ const ConversationItem = ({
               bg-transparent
               outline-none
               border-b
-              border-blue-500
+              border-white/30
               text-white
+              text-sm
             "
           />
         ) : (
           <span
-            className="flex-1 truncate"
-            onDoubleClick={() =>
-              setEditing(true)
-            }
+            className="flex-1 truncate text-sm"
+            onDoubleClick={() => setEditing(true)}
           >
             {chat.title}
           </span>
@@ -193,15 +151,15 @@ const ConversationItem = ({
               setOpen((prev) => !prev);
             }}
             className={`
-                 cursor-pointer
-                 transition
-                 ${active
+              cursor-pointer
+              transition
+              ${active
                 ? "text-white"
                 : "opacity-0 group-hover:opacity-100 text-slate-400 hover:text-white"
               }
             `}
           >
-            <MoreHorizontal size={18} />
+            <MoreHorizontal size={16} />
           </div>
         )}
       </button>
@@ -210,13 +168,13 @@ const ConversationItem = ({
         <div
           className="
             absolute
-            top-12
+            top-11
             right-2
             w-44
             rounded-xl
-            bg-[#202123]
+            bg-[#1e1f20]
             border
-            border-slate-700
+            border-white/10
             shadow-2xl
             overflow-hidden
             z-50
@@ -234,12 +192,13 @@ const ConversationItem = ({
               items-center
               gap-3
               px-4
-              py-3
-              hover:bg-slate-800
+              py-2.5
+              hover:bg-white/5
               text-white
+              text-sm
             "
           >
-            <Pencil size={16} />
+            <Pencil size={15} />
             Rename
           </button>
 
@@ -255,12 +214,13 @@ const ConversationItem = ({
               items-center
               gap-3
               px-4
-              py-3
+              py-2.5
               text-red-400
               hover:bg-red-500/10
+              text-sm
             "
           >
-            <Trash2 size={16} />
+            <Trash2 size={15} />
             Delete
           </button>
         </div>

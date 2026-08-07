@@ -72,7 +72,6 @@ const PromptInput = () => {
 
     setSelectedFile(file);
 
-    // Agar Image hai toh local preview URL banayein
     if (file.type.startsWith("image/")) {
       const previewUrl = URL.createObjectURL(file);
       setFilePreview(previewUrl);
@@ -80,12 +79,11 @@ const PromptInput = () => {
       setFilePreview(null);
     }
 
-    // Input reset karein taaki same file dubara select ho sake
     e.target.value = "";
   };
 
   const removeSelectedFile = () => {
-    if (loadingMessage) return; // Block removal while streaming
+    if (loadingMessage) return;
     setSelectedFile(null);
     if (filePreview) {
       URL.revokeObjectURL(filePreview);
@@ -103,7 +101,6 @@ const PromptInput = () => {
     const text = prompt.trim();
     const fileToSend = selectedFile;
 
-    // Reset Input States
     setPrompt("");
     removeSelectedFile();
 
@@ -112,7 +109,6 @@ const PromptInput = () => {
       textareaRef.current.style.overflowY = "hidden";
     }
 
-    // Prompt aur File dono ConversationContext me bhejein
     await sendPrompt(text, fileToSend);
   };
 
@@ -165,16 +161,17 @@ const PromptInput = () => {
   }, []);
 
   return (
-    <div className="bg-[#212121] px-4 pb-4">
+    /* Outer container now matches main body background #131314 */
+    <div className="bg-[#131314] px-4 pb-4">
       <div
         className="
           mx-auto
           max-w-3xl
           rounded-3xl
           border
-          border-[#3b3b3b]
-          bg-[#2f2f2f]
-          shadow-lg
+          border-white/10
+          bg-[#1e1f20]
+          shadow-xl
           px-3
           py-2.5
         "
@@ -182,7 +179,7 @@ const PromptInput = () => {
         {/* File Preview Badge Area */}
         {selectedFile && (
           <div className="mb-2 flex items-center gap-2 pl-1 pt-1">
-            <div className="relative flex items-center gap-2.5 rounded-2xl bg-[#3b3b3b] p-2 pr-8 text-xs text-white shadow-md">
+            <div className="relative flex items-center gap-2.5 rounded-2xl bg-white/5 border border-white/10 p-2 pr-8 text-xs text-white shadow-md">
               {filePreview ? (
                 <img
                   src={filePreview}
@@ -190,7 +187,7 @@ const PromptInput = () => {
                   className="h-10 w-10 rounded-xl object-cover"
                 />
               ) : (
-                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#4a4a4a]">
+                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-white/10">
                   <FileText size={20} className="text-slate-300" />
                 </div>
               )}
@@ -219,10 +216,10 @@ const PromptInput = () => {
                   items-center
                   justify-center
                   rounded-full
-                  bg-[#4e4e4e]
+                  bg-white/10
                   text-slate-300
                   transition
-                  hover:bg-[#606060]
+                  hover:bg-white/20
                   hover:text-white
                   disabled:opacity-50
                   disabled:cursor-not-allowed
@@ -261,7 +258,7 @@ const PromptInput = () => {
                 rounded-full
                 text-slate-300
                 transition
-                hover:bg-[#3b3b3b]
+                hover:bg-white/10
                 disabled:opacity-40
                 disabled:cursor-not-allowed
               "

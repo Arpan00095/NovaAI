@@ -8,7 +8,6 @@ const MessageBubble = ({ message }) => {
   const isUser = message.role === "user";
   const [copied, setCopied] = useState(false);
 
-  // Database se `image_url` milta hai aur Local State se `image`
   const imageUrl = message.image || message.image_url;
 
   const handleCopy = async () => {
@@ -31,14 +30,11 @@ const MessageBubble = ({ message }) => {
           !isUser ? "text-slate-100" : ""
         }`}
       >
-        {/* ======================= */}
-        {/* USER MESSAGE UI         */}
-        {/* ======================= */}
+        {/* USER MESSAGE UI */}
         {isUser && (
           <div className="flex flex-col items-end gap-1.5">
-            {/* ChatGPT Style Small Image Thumbnail (Handles both local image & DB image_url) */}
             {imageUrl && (
-              <div className="relative overflow-hidden rounded-2xl border border-[#3b3b3b] shadow-sm max-w-[220px]">
+              <div className="relative overflow-hidden rounded-2xl border border-white/10 shadow-sm max-w-[220px]">
                 <img
                   src={imageUrl}
                   alt="User upload"
@@ -47,21 +43,18 @@ const MessageBubble = ({ message }) => {
               </div>
             )}
 
-            {/* Text inside the bubble */}
             {message.content && (
-              <div className="inline-block rounded-3xl bg-blue-600 px-5 py-2.5 text-[15px] text-white whitespace-pre-wrap leading-7 shadow-sm">
+              /* Replaced bg-blue-600 with bg-[#2a2b2e] (subtle dark slate) */
+              <div className="inline-block rounded-3xl bg-[#2a2b2e] border border-white/10 px-5 py-2.5 text-[15px] text-white whitespace-pre-wrap leading-7 shadow-sm">
                 {message.content}
               </div>
             )}
           </div>
         )}
 
-        {/* ======================= */}
-        {/* ASSISTANT MESSAGE UI    */}
-        {/* ======================= */}
+        {/* ASSISTANT MESSAGE UI */}
         {!isUser && (
           <div className="flex flex-col items-start gap-2">
-            {/* AI Generated Image (if any) */}
             {imageUrl && (
               <img
                 src={imageUrl}
@@ -71,14 +64,13 @@ const MessageBubble = ({ message }) => {
                   max-w-full
                   rounded-2xl
                   border
-                  border-slate-700
+                  border-white/10
                   object-contain
                   shadow-lg
                 "
               />
             )}
 
-            {/* AI Text Response */}
             {message.content && (
               <div
                 className="
@@ -105,7 +97,7 @@ const MessageBubble = ({ message }) => {
                         return (
                           <code
                             {...rest}
-                            className="rounded-md bg-slate-800 px-1.5 py-1 text-pink-400"
+                            className="rounded-md bg-white/10 px-1.5 py-1 text-pink-400"
                           >
                             {children}
                           </code>
@@ -125,7 +117,7 @@ const MessageBubble = ({ message }) => {
               </div>
             )}
 
-            {/* AI Message Action Buttons */}
+            {/* AI Action Buttons */}
             <div
               className="
                 mt-2
@@ -139,20 +131,20 @@ const MessageBubble = ({ message }) => {
             >
               <button
                 onClick={handleCopy}
-                className="rounded-lg p-2 hover:bg-slate-800 transition text-slate-400 hover:text-white"
+                className="rounded-lg p-2 hover:bg-white/5 transition text-slate-400 hover:text-white"
               >
                 {copied ? <Check size={16} /> : <Copy size={16} />}
               </button>
 
-              <button className="rounded-lg p-2 hover:bg-slate-800 transition text-slate-400 hover:text-white">
+              <button className="rounded-lg p-2 hover:bg-white/5 transition text-slate-400 hover:text-white">
                 <ThumbsUp size={16} />
               </button>
 
-              <button className="rounded-lg p-2 hover:bg-slate-800 transition text-slate-400 hover:text-white">
+              <button className="rounded-lg p-2 hover:bg-white/5 transition text-slate-400 hover:text-white">
                 <ThumbsDown size={16} />
               </button>
 
-              <button className="flex items-center gap-2 rounded-lg px-3 py-2 hover:bg-slate-800 transition text-sm text-slate-400 hover:text-white">
+              <button className="flex items-center gap-2 rounded-lg px-3 py-2 hover:bg-white/5 transition text-sm text-slate-400 hover:text-white">
                 <RotateCcw size={15} />
                 Regenerate
               </button>

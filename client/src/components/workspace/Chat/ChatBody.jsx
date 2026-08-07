@@ -22,14 +22,19 @@ const ChatBody = () => {
 
   const { user } = useContext(AuthContext);
 
-  const userName =
+  // Extract First Name Only ("ARPAN MAJI" -> "Arpan")
+  const rawName =
     user?.full_name ||
     user?.name ||
     user?.fullName ||
     user?.username ||
     user?.displayName ||
     user?.email?.split("@")[0] ||
-    "User";
+    "Arpan";
+
+  const firstName = rawName.trim().split(" ")[0];
+  const formattedName =
+    firstName.charAt(0).toUpperCase() + firstName.slice(1).toLowerCase();
 
   const bottomRef = useRef(null);
   const containerRef = useRef(null);
@@ -40,13 +45,11 @@ const ChatBody = () => {
     const isNewMessageAdded = messages.length > prevMessagesLength.current;
     prevMessagesLength.current = messages.length;
 
-    // Jab user naya message bhejega, tabhi forcefully bottom me scroll karega
     if (isNewMessageAdded) {
       bottomRef.current?.scrollIntoView({ behavior: "smooth" });
       return;
     }
 
-    // Streaming ke dauran check karo agar user already bottom ke paas hai tabhi smooth scroll karo
     if (loadingMessage && containerRef.current) {
       const { scrollTop, scrollHeight, clientHeight } = containerRef.current;
       const isNearBottom = scrollHeight - scrollTop - clientHeight < 150;
@@ -60,41 +63,47 @@ const ChatBody = () => {
   return (
     <main 
       ref={containerRef}
-      className="flex-1 overflow-y-auto scroll-smooth bg-[#212121]"
+      className="flex-1 overflow-y-auto scroll-smooth bg-[#131314]"
     >
       {messages.length === 0 ? (
 
         <div className="h-full flex items-center justify-center px-6">
 
-          <div className="text-center max-w-xl">
+          <div className="text-center max-w-2xl mx-auto flex flex-col items-center">
 
-            <div className="flex justify-center mb-8">
-
+            {/* Glowing Gemini Badge */}
+            <div className="relative mb-6">
+              <div className="absolute -inset-1 rounded-2xl bg-gradient-to-r from-blue-500 via-purple-500 to-pink-500 opacity-30 blur-lg animate-pulse" />
               <div
                 className="
+                  relative
                   h-16
                   w-16
                   rounded-2xl
-                  bg-blue-600
+                  bg-[#1e1f20]
+                  border
+                  border-white/10
                   flex
                   items-center
                   justify-center
-                  shadow-lg
+                  shadow-2xl
                 "
               >
                 <Sparkles
                   size={30}
-                  className="text-white"
+                  className="text-blue-400"
                 />
               </div>
-
             </div>
 
-            <h1 className="text-5xl font-bold text-white">
-              Hello, {userName} 👋
+            {/* Gemini Multi-Color Gradient Text */}
+            <h1 className="text-4xl sm:text-5xl font-semibold tracking-tight leading-tight">
+              <span className="bg-gradient-to-r from-[#4285f4] via-[#9b72cb] to-[#d96570] bg-clip-text text-transparent">
+                Hello, {formattedName}
+              </span>
             </h1>
 
-            <p className="mt-5 text-lg text-slate-400">
+            <p className="mt-4 text-lg sm:text-xl text-[#c4c7c5] font-normal">
               How can I help you today?
             </p>
 

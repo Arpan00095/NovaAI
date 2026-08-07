@@ -15,7 +15,6 @@ import { AuthContext } from "../../../contexts/AuthContext";
 
 const UserDropdown = ({ onLogout }) => {
   const { user, token } = useContext(AuthContext);
-
   const isGuest = !token || !user;
 
   return (
@@ -23,186 +22,96 @@ const UserDropdown = ({ onLogout }) => {
       className="
         w-full
         rounded-2xl
-        bg-slate-900
+        bg-[#1e1f20]
         border
-        border-slate-700
+        border-white/10
         shadow-2xl
         overflow-hidden
         backdrop-blur-xl
+        text-sm
       "
     >
-      {/* Header */}
-
-      <div className="px-4 py-3 border-b border-slate-700">
-        <p className="text-sm font-semibold text-white">
+      <div className="px-4 py-3 border-b border-white/5">
+        <p className="text-xs font-semibold text-white">
           {isGuest ? "Welcome" : "Account"}
         </p>
 
-        <p className="text-xs text-slate-400">
+        <p className="text-[10px] text-slate-400 mt-0.5">
           {isGuest
-            ? "Login to save chats and access all features"
-            : "Manage your NovaAI account"}
+            ? "Login to save chats"
+            : "Manage your account"}
         </p>
       </div>
 
       {isGuest ? (
         <>
-          {/* Login */}
-
           <Link
             to="/login"
-            className="
-              flex
-              items-center
-              gap-3
-              px-4
-              py-3
-              text-slate-200
-              hover:bg-slate-800
-              transition
-            "
+            className="flex items-center gap-3 px-4 py-2.5 text-slate-200 hover:bg-white/5 transition"
           >
-            <LogIn size={18} />
+            <LogIn size={16} />
             <span>Login</span>
           </Link>
 
-          {/* Signup */}
-
           <Link
             to="/signup"
-            className="
-              flex
-              items-center
-              gap-3
-              px-4
-              py-3
-              text-slate-200
-              hover:bg-slate-800
-              transition
-            "
+            className="flex items-center gap-3 px-4 py-2.5 text-slate-200 hover:bg-white/5 transition"
           >
-            <UserPlus size={18} />
+            <UserPlus size={16} />
             <span>Create Account</span>
           </Link>
 
-          <div className="border-t border-slate-700" />
-
-          {/* About */}
+          <div className="border-t border-white/5" />
 
           <Link
             to="/about"
-            className="
-              flex
-              items-center
-              gap-3
-              px-4
-              py-3
-              text-slate-200
-              hover:bg-slate-800
-              transition
-            "
+            className="flex items-center gap-3 px-4 py-2.5 text-slate-200 hover:bg-white/5 transition"
           >
-            <HelpCircle size={18} />
+            <HelpCircle size={16} />
             <span>About</span>
           </Link>
         </>
       ) : (
         <>
-          {/* Profile */}
-
           <Link
             to="/profile"
-            className="
-              flex
-              items-center
-              gap-3
-              px-4
-              py-3
-              text-slate-200
-              hover:bg-slate-800
-              transition
-            "
+            className="flex items-center gap-3 px-4 py-2.5 text-slate-200 hover:bg-white/5 transition"
           >
-            <User size={18} />
+            <User size={16} />
             <span>Profile</span>
           </Link>
 
-          {/* Settings */}
-
           <Link
             to="/settings"
-            className="
-              flex
-              items-center
-              gap-3
-              px-4
-              py-3
-              text-slate-200
-              hover:bg-slate-800
-              transition
-            "
+            className="flex items-center gap-3 px-4 py-2.5 text-slate-200 hover:bg-white/5 transition"
           >
-            <Settings size={18} />
+            <Settings size={16} />
             <span>Settings</span>
           </Link>
 
-          {/* Appearance */}
-
           <Link
             to="/appearance"
-            className="
-              flex
-              items-center
-              gap-3
-              px-4
-              py-3
-              text-slate-200
-              hover:bg-slate-800
-              transition
-            "
+            className="flex items-center gap-3 px-4 py-2.5 text-slate-200 hover:bg-white/5 transition"
           >
-            <Palette size={18} />
+            <Palette size={16} />
             <span>Appearance</span>
           </Link>
 
-          {/* About */}
-
           <Link
             to="/about"
-            className="
-              flex
-              items-center
-              gap-3
-              px-4
-              py-3
-              text-slate-200
-              hover:bg-slate-800
-              transition
-            "
+            className="flex items-center gap-3 px-4 py-2.5 text-slate-200 hover:bg-white/5 transition"
           >
-            <HelpCircle size={18} />
+            <HelpCircle size={16} />
             <span>About</span>
           </Link>
 
-          <div className="border-t border-slate-700" />
-
-          {/* Logout */}
+          <div className="border-t border-white/5" />
 
           <button
             onClick={onLogout}
-            className="
-              w-full
-              flex
-              items-center
-              gap-3
-              px-4
-              py-3
-              text-red-400
-              hover:bg-red-500/10
-              transition
-            "
+            className="w-full flex items-center gap-3 px-4 py-2.5 text-red-400 hover:bg-red-500/10 transition"
           >
-            <LogOut size={18} />
+            <LogOut size={16} />
             <span>Logout</span>
           </button>
         </>

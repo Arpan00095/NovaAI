@@ -1,26 +1,27 @@
 @import "tailwindcss";
 @plugin "@tailwindcss/typography";
 
-
 :root {
   font-family: Inter, system-ui, Helvetica, Arial, sans-serif;
 }
-
 
 html {
   scroll-behavior: smooth;
 }
 
-
-body {
+body,
+#root {
   margin: 0;
   min-width: 320px;
   min-height: 100vh;
+  background-color: #131314 !important; /* Gemini Deep Dark Tone */
+  color: #e3e3e3;
 }
 
+/* Custom Scrollbar */
 ::-webkit-scrollbar {
-  width: 8px;
-  height: 8px;
+  width: 6px;
+  height: 6px;
 }
 
 ::-webkit-scrollbar-track {
@@ -28,17 +29,92 @@ body {
 }
 
 ::-webkit-scrollbar-thumb {
-  background: #4b5563;
+  background: #2a2b2d;
   border-radius: 9999px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: #6b7280;
+  background: #3c3d40;
 }
 
-/* Firefox */
-
+/* Firefox Scrollbar */
 * {
   scrollbar-width: thin;
-  scrollbar-color: #4b5563 transparent;
+  scrollbar-color: #2a2b2d transparent;
+}
+
+/* ==========================================
+   NOVA AI - ALL CONTAINERS SEAMLESS BLEND
+   ========================================== */
+
+/* 1. Header, Sidebar, Main Body & Bottom Footer Container All set to #131314 */
+aside, 
+.sidebar, 
+header, 
+.chat-header, 
+main, 
+.chat-body,
+footer,
+div[class*="min-w-0"],
+div[class*="flex-col"] {
+  background-color: #131314 !important;
+}
+
+/* 2. Remove borders from Header & Footer Containers */
+header, 
+.chat-header,
+footer {
+  border: none !important;
+  box-shadow: none !important;
+}
+
+/* 3. Subtle border line between sidebar and main area */
+aside, 
+.sidebar {
+  border-right: 1px solid rgba(255, 255, 255, 0.05) !important;
+}
+
+/* 4. Floating Input Bar Styling (Subtle Slate Pill with Soft Border) */
+form div[class*="rounded"],
+div[class*="bg-[#212121]"],
+div[class*="bg-[#1e1f20]"] {
+  background-color: #1e1f20 !important;
+  border: 1px solid rgba(255, 255, 255, 0.08) !important;
+}
+
+/* 5. Original Blue Accent Preservation for Icons */
+.logo-icon,
+svg.nova-logo,
+[class*="logo"] svg {
+  color: #3b82f6 !important;
+}
+
+/* 6. Metallic Silver Pulse Typing Indicator */
+.typing-indicator {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 12px;
+}
+
+.typing-dot {
+  width: 7px;
+  height: 7px;
+  background-color: #c4c7c5;
+  border-radius: 50%;
+  animation: typingPulse 1.4s infinite ease-in-out both;
+}
+
+.typing-dot:nth-child(1) { animation-delay: -0.32s; }
+.typing-dot:nth-child(2) { animation-delay: -0.16s; }
+
+@keyframes typingPulse {
+  0%, 80%, 100% {
+    transform: scale(0.6);
+    opacity: 0.3;
+  }
+  40% {
+    transform: scale(1.1);
+    opacity: 1;
+  }
 }

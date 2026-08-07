@@ -34,21 +34,15 @@ const ChatHeader = ({
     exportMarkdown,
   } = useContext(ConversationContext);
 
-  const [menuOpen, setMenuOpen] =
-    useState(false);
-
+  const [menuOpen, setMenuOpen] = useState(false);
   const menuRef = useRef(null);
 
-  const activeConversation =
-    conversations.find(
-      (c) => c.id === activeConversationId
-    );
+  const activeConversation = conversations.find(
+    (c) => c.id === activeConversationId
+  );
 
-  const isPinned =
-    activeConversation?.is_pinned || false;
-
-  const isArchived =
-    activeConversation?.is_archived || false;
+  const isPinned = activeConversation?.is_pinned || false;
+  const isArchived = activeConversation?.is_archived || false;
 
   useEffect(() => {
     const handleClick = (e) => {
@@ -60,29 +54,17 @@ const ChatHeader = ({
       }
     };
 
-    document.addEventListener(
-      "mousedown",
-      handleClick
-    );
-
-    return () =>
-      document.removeEventListener(
-        "mousedown",
-        handleClick
-      );
+    document.addEventListener("mousedown", handleClick);
+    return () => document.removeEventListener("mousedown", handleClick);
   }, []);
 
   const handleDelete = async () => {
     if (!activeConversationId) return;
 
-    const ok = window.confirm(
-      "Delete this conversation?"
-    );
-
+    const ok = window.confirm("Delete this conversation?");
     if (!ok) return;
 
     await deleteChat(activeConversationId);
-
     setMenuOpen(false);
   };
 
@@ -90,28 +72,25 @@ const ChatHeader = ({
     <header
       className="
         h-16
-        border-b
-        border-slate-800
-        bg-[#171717]
+        bg-transparent
         px-4
         lg:px-6
         flex
         items-center
         justify-between
         relative
+        z-10
       "
     >
       <div className="flex items-center gap-3">
         <button
-          onClick={() =>
-            setMobileOpen(true)
-          }
+          onClick={() => setMobileOpen(true)}
           className="
             lg:hidden
             h-10
             w-10
             rounded-lg
-            hover:bg-slate-800
+            hover:bg-white/5
             flex
             items-center
             justify-center
@@ -132,13 +111,13 @@ const ChatHeader = ({
             rounded-xl
             px-3
             py-2
-            hover:bg-slate-800
+            hover:bg-white/5
             transition
           "
         >
           <Sparkles
             size={18}
-            className="text-blue-400"
+            className="text-blue-500"
           />
 
           <span className="text-white font-semibold">
@@ -157,14 +136,12 @@ const ChatHeader = ({
         ref={menuRef}
       >
         <button
-          onClick={() =>
-            setMenuOpen(!menuOpen)
-          }
+          onClick={() => setMenuOpen(!menuOpen)}
           className="
             h-10
             w-10
             rounded-xl
-            hover:bg-slate-800
+            hover:bg-white/5
             flex
             items-center
             justify-center
@@ -186,8 +163,8 @@ const ChatHeader = ({
               w-60
               rounded-xl
               border
-              border-slate-700
-              bg-[#222]
+              border-white/10
+              bg-[#1e1f20]
               shadow-2xl
               overflow-hidden
               z-50
@@ -196,12 +173,7 @@ const ChatHeader = ({
             <button
               onClick={async () => {
                 if (!activeConversationId) return;
-
-                await pinChat(
-                  activeConversationId,
-                  !isPinned
-                );
-
+                await pinChat(activeConversationId, !isPinned);
                 setMenuOpen(false);
               }}
               className="
@@ -211,24 +183,19 @@ const ChatHeader = ({
                 flex
                 items-center
                 gap-3
-                hover:bg-slate-800
+                hover:bg-white/5
                 text-white
+                transition
               "
             >
               <Pin size={18} />
-              {isPinned
-                ? "Unpin Chat"
-                : "Pin Chat"}
+              {isPinned ? "Unpin Chat" : "Pin Chat"}
             </button>
 
             <button
               onClick={async () => {
                 if (!activeConversationId) return;
-
-                await shareChat(
-                  activeConversationId
-                );
-
+                await shareChat(activeConversationId);
                 setMenuOpen(false);
               }}
               className="
@@ -238,8 +205,9 @@ const ChatHeader = ({
                 flex
                 items-center
                 gap-3
-                hover:bg-slate-800
+                hover:bg-white/5
                 text-white
+                transition
               "
             >
               <Share2 size={18} />
@@ -249,33 +217,26 @@ const ChatHeader = ({
             <button
               onClick={async () => {
                 if (!activeConversationId) return;
-
-                await archiveChat(
-                  activeConversationId,
-                  !isArchived
-                );
-
+                await archiveChat(activeConversationId, !isArchived);
                 setMenuOpen(false);
               }}
               className="
-                   w-full
-                   px-4
-                   py-3
-                   flex
-                   items-center
-                    gap-3
-                    hover:bg-slate-800
-                    text-white
-                 "
+                w-full
+                px-4
+                py-3
+                flex
+                items-center
+                gap-3
+                hover:bg-white/5
+                text-white
+                transition
+              "
             >
               <Archive size={18} />
-
-              {isArchived
-                ? "Restore Chat"
-                : "Archive Chat"}
+              {isArchived ? "Restore Chat" : "Archive Chat"}
             </button>
 
-            <hr className="border-slate-700" />
+            <hr className="border-white/10" />
 
             <button
               onClick={() => {
@@ -289,8 +250,9 @@ const ChatHeader = ({
                 flex
                 items-center
                 gap-3
-                hover:bg-slate-800
+                hover:bg-white/5
                 text-white
+                transition
               "
             >
               <Download size={18} />
@@ -309,15 +271,16 @@ const ChatHeader = ({
                 flex
                 items-center
                 gap-3
-                hover:bg-slate-800
+                hover:bg-white/5
                 text-white
+                transition
               "
             >
               <FileText size={18} />
               Export Markdown
             </button>
 
-            <hr className="border-slate-700" />
+            <hr className="border-white/10" />
 
             <button
               onClick={handleDelete}
@@ -328,9 +291,9 @@ const ChatHeader = ({
                 flex
                 items-center
                 gap-3
-                hover:bg-red-600
+                hover:bg-red-500/10
                 text-red-400
-                hover:text-white
+                transition
               "
             >
               <Trash2 size={18} />

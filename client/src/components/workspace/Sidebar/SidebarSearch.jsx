@@ -5,35 +5,35 @@ const SidebarSearch = ({
   setSearch,
 }) => {
   return (
-    <div className="px-3 py-2">
+    <div className="px-3 py-1 mb-1">
       <div
         className="
           flex
           items-center
-          gap-3
+          gap-2.5
           rounded-xl
-          bg-slate-800
-          px-4
-          py-3
+          bg-white/5
+          border
+          border-white/5
+          px-3
+          py-2
         "
       >
         <Search
-          size={18}
-          className="text-slate-400"
+          size={16}
+          className="text-slate-400 shrink-0"
         />
 
         <input
           type="text"
           value={search}
-          onChange={(e) =>
-            setSearch(e.target.value)
-          }
+          onChange={(e) => setSearch(e.target.value)}
           placeholder="Search chats..."
           className="
             flex-1
             bg-transparent
             outline-none
-            text-sm
+            text-xs
             text-white
             placeholder:text-slate-500
           "
