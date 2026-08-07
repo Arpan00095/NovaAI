@@ -20,18 +20,23 @@ const ChatBody = () => {
     loadingMessage,
   } = useContext(ConversationContext);
 
-  const { user } = useContext(AuthContext);
+  const { user, token, isAuthenticated } = useContext(AuthContext);
 
-  // Extract First Name Only ("ARPAN MAJI" -> "Arpan")
-  const rawName =
-    user?.full_name ||
-    user?.name ||
-    user?.fullName ||
-    user?.username ||
-    user?.displayName ||
-    user?.email?.split("@")[0] ||
-    "Arpan";
+  // Check if User is actually logged in
+  const isLoggedIn = Boolean((isAuthenticated || token) && user);
 
+  // Dynamic Name: Logged-in user's name OR fallback to "User" for Guest Mode
+  const rawName = isLoggedIn
+    ? user?.full_name ||
+      user?.name ||
+      user?.fullName ||
+      user?.username ||
+      user?.displayName ||
+      user?.email?.split("@")[0] ||
+      "User"
+    : "User";
+
+  // Format first name ("ARPAN MAJI" -> "Arpan", Guest -> "User")
   const firstName = rawName.trim().split(" ")[0];
   const formattedName =
     firstName.charAt(0).toUpperCase() + firstName.slice(1).toLowerCase();
