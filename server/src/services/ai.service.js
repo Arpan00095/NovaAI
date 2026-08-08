@@ -5,6 +5,8 @@ import { aiToolRouter } from "../router/ai.tool.router.js";
 import { SYSTEM_PROMPTS } from "../prompts/systemPrompts.js";
 
 const groq = new Groq({ apiKey: env.GROQ_API_KEY || process.env.GROQ_API_KEY });
+const NVIDIA_API_KEY = env.NVIDIA_API_KEY || process.env.NVIDIA_API_KEY;
+const NVIDIA_URL = "https://integrate.api.nvidia.com/v1/chat/completions";
 
 const PRIMARY_TEXT_MODEL = "llama-3.3-70b-versatile";
 const PRIMARY_VISION_MODEL = "qwen/qwen3.6-27b";
@@ -15,12 +17,29 @@ export const generateConversationTitle = async (message) => {
   return cleanMessage.length > 30 ? cleanMessage.substring(0, 30) + "..." : cleanMessage;
 };
 
+// Smart model selector for NVIDIA Nemotron
+const resolveNvidiaModel = (modelId, promptText) => {
+  if (modelId === "nvidia-340b") {
+    return "nvidia/nemotron-4-340b-instruct";
+  }
+  if (modelId === "nvidia-auto") {
+    const isComplex =
+      /3d|three\.js|webgl|shader|canvas|system architecture|complex logic|algorithm/i.test(promptText) ||
+      promptText.length > 600;
+    return isComplex
+      ? "nvidia/nemotron-4-340b-instruct"
+      : "nvidia/llama-3.1-nemotron-70b-instruct";
+  }
+  return "nvidia/llama-3.1-nemotron-70b-instruct";
+};
+
 export const chatWithAIStream = async (
   message,
   history = [],
   memories = [],
   file = null,
-  fileType = null
+  fileType = null,
+  selectedModel = "groq-llama"
 ) => {
   const intent = detectIntent(message || "");
   const engine = aiToolRouter(intent);
@@ -33,8 +52,8 @@ export const chatWithAIStream = async (
 
   const fullSystemPrompt = `${systemPrompt}\n${memoryPrompt}\n\nIMPORTANT: Provide direct response only. Do NOT include internal reasoning, thinking steps, or <think> tags.`;
 
-  let selectedModel = PRIMARY_TEXT_MODEL;
-  let groqMessages = [
+  // Base Messages Array
+  let formattedMessages = [
     { role: "system", content: fullSystemPrompt },
     ...history.map((m) => ({
       role: m.role === "assistant" ? "assistant" : "user",
@@ -42,39 +61,93 @@ export const chatWithAIStream = async (
     })),
   ];
 
-  // If Image/File is attached, switch to vision model
   if (file) {
-    selectedModel = PRIMARY_VISION_MODEL;
-    console.log(`[AI Engine] Image detected -> Switching to Vision Model: ${selectedModel}`);
-
     const imageUrl = file.startsWith("data:")
       ? file
       : `data:${fileType || "image/png"};base64,${file}`;
 
-    groqMessages.push({
+    formattedMessages.push({
       role: "user",
       content: [
         { type: "text", text: message || "Analyze this image in detail." },
-        {
-          type: "image_url",
-          image_url: { url: imageUrl },
-        },
+        { type: "image_url", image_url: { url: imageUrl } },
       ],
     });
   } else {
-    groqMessages.push({ role: "user", content: message || "" });
+    formattedMessages.push({ role: "user", content: message || "" });
   }
+
+  // ====================================================
+  // ENGINE ROUTING: NVIDIA NEMOTRON vs GROQ
+  // ====================================================
+
+  if (selectedModel.startsWith("nvidia")) {
+    const targetNvidiaModel = resolveNvidiaModel(selectedModel, message || "");
+
+    const response = await fetch(NVIDIA_URL, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${NVIDIA_API_KEY}`,
+      },
+      body: JSON.stringify({
+        model: targetNvidiaModel,
+        messages: formattedMessages,
+        temperature: 0.2,
+        max_tokens: 2048,
+        stream: true,
+      }),
+    });
+
+    if (!response.ok) {
+      throw new Error(`NVIDIA API Error: ${response.statusText}`);
+    }
+
+    // Process NVIDIA Stream Engine
+    async function* transformNvidiaStream() {
+      const reader = response.body.getReader();
+      const decoder = new TextDecoder("utf-8");
+      let buffer = "";
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+
+        buffer += decoder.decode(value, { stream: true });
+        const lines = buffer.split("\n");
+        buffer = lines.pop() || "";
+
+        for (const line of lines) {
+          const trimmed = line.trim();
+          if (trimmed.startsWith("data: ") && trimmed !== "data: [DONE]") {
+            try {
+              const parsed = JSON.parse(trimmed.slice(6));
+              const textChunk = parsed.choices[0]?.delta?.content || "";
+              if (textChunk) yield { text: textChunk };
+            } catch (err) {
+              // Ignore partial JSON chunks
+            }
+          }
+        }
+      }
+    }
+
+    return { intent, stream: transformNvidiaStream() };
+  }
+
+  // DEFAULT ENGINE: GROQ
+  let activeGroqModel = file ? PRIMARY_VISION_MODEL : PRIMARY_TEXT_MODEL;
 
   try {
     const groqStream = await groq.chat.completions.create({
-      messages: groqMessages,
-      model: selectedModel,
+      messages: formattedMessages,
+      model: activeGroqModel,
       stream: true,
       max_tokens: 2000,
       temperature: 0.7,
     });
 
-    async function* transformStream() {
+    async function* transformGroqStream() {
       let isThinking = false;
       let buffer = "";
 
@@ -84,7 +157,6 @@ export const chatWithAIStream = async (
 
         buffer += textChunk;
 
-        // Strip <think>...</think> blocks completely
         while (buffer.length > 0) {
           if (!isThinking) {
             const thinkStart = buffer.indexOf("<think>");
@@ -94,7 +166,6 @@ export const chatWithAIStream = async (
               buffer = buffer.slice(thinkStart + 7);
               isThinking = true;
             } else {
-              // Yield buffer safely if no opening tag is forming
               if (!"<think>".startsWith(buffer)) {
                 yield { text: buffer };
                 buffer = "";
@@ -119,15 +190,22 @@ export const chatWithAIStream = async (
       }
     }
 
-    return { intent, stream: transformStream() };
+    return { intent, stream: transformGroqStream() };
   } catch (error) {
-    console.error(`Groq API Error on model (${selectedModel}):`, error.message);
+    console.error(`Groq API Error on model (${activeGroqModel}):`, error.message);
     throw error;
   }
 };
 
-export const chatWithAI = async (message, history = [], memories = [], file = null, fileType = null) => {
-  const result = await chatWithAIStream(message, history, memories, file, fileType);
+export const chatWithAI = async (
+  message,
+  history = [],
+  memories = [],
+  file = null,
+  fileType = null,
+  selectedModel = "groq-llama"
+) => {
+  const result = await chatWithAIStream(message, history, memories, file, fileType, selectedModel);
   let text = "";
   for await (const chunk of result.stream) {
     text += chunk.text || "";

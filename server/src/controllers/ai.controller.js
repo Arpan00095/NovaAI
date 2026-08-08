@@ -21,9 +21,7 @@ import {
   getMemories,
 } from "../services/memory.service.js";
 
-// ======================================================
-// HELPER: UPLOAD IMAGE TO SUPABASE STORAGE
-// ======================================================
+// Helper Function
 const uploadImageToSupabase = async (base64File, fileType) => {
   try {
     const base64Data = base64File.includes(",")
@@ -53,13 +51,10 @@ const uploadImageToSupabase = async (base64File, fileType) => {
   }
 };
 
-// ======================================================
 // NORMAL CHAT
-// ======================================================
-
 export const chat = async (req, res) => {
   try {
-    const { message, conversationId, file, fileType } = req.body;
+    const { message, conversationId, file, fileType, model = "groq-llama" } = req.body;
 
     if (!message?.trim() && !file) {
       return res.status(400).json({
@@ -75,7 +70,8 @@ export const chat = async (req, res) => {
         [],
         [],
         file,
-        fileType
+        fileType,
+        model
       );
 
       return res.json({
@@ -101,7 +97,6 @@ export const chat = async (req, res) => {
 
     const history = await getConversationMessages(currentConversationId);
 
-    // Upload image if provided
     let uploadedImageUrl = null;
     if (file) {
       uploadedImageUrl = await uploadImageToSupabase(file, fileType);
@@ -132,7 +127,8 @@ export const chat = async (req, res) => {
       history,
       storedMemories,
       file,
-      fileType
+      fileType,
+      model
     );
 
     await saveMessage(
@@ -165,13 +161,10 @@ export const chat = async (req, res) => {
   }
 };
 
-// ======================================================
 // STREAM CHAT
-// ======================================================
-
 export const streamChat = async (req, res) => {
   try {
-    const { message, conversationId, file, fileType } = req.body;
+    const { message, conversationId, file, fileType, model = "groq-llama" } = req.body;
 
     if (!message?.trim() && !file) {
       return res.status(400).json({
@@ -191,7 +184,8 @@ export const streamChat = async (req, res) => {
         [],
         [],
         file,
-        fileType
+        fileType,
+        model
       );
 
       for await (const chunk of aiResult.stream) {
@@ -224,7 +218,6 @@ export const streamChat = async (req, res) => {
 
     const history = await getConversationMessages(currentConversationId);
 
-    // Upload image if provided
     let uploadedImageUrl = null;
     if (file) {
       uploadedImageUrl = await uploadImageToSupabase(file, fileType);
@@ -255,7 +248,8 @@ export const streamChat = async (req, res) => {
       history,
       storedMemories,
       file,
-      fileType
+      fileType,
+      model
     );
 
     res.setHeader("Content-Type", "text/event-stream");
@@ -294,7 +288,7 @@ export const streamChat = async (req, res) => {
 
     res.end();
   } catch (error) {
-    console.error(error);
+    console.error("Stream Controller Error:", error);
     let message = "Something went wrong. Please try again.";
 
     if (
@@ -302,21 +296,7 @@ export const streamChat = async (req, res) => {
       error.message?.includes("quota") ||
       error.message?.includes("429")
     ) {
-      let retryText = "a few minutes";
-      const retryMatch = error.message?.match(/"retryDelay":\s*"(\d+)s"/);
-
-      if (retryMatch) {
-        const seconds = Number(retryMatch[1]);
-        if (seconds < 60) {
-          retryText = `${seconds} seconds`;
-        } else if (seconds < 3600) {
-          retryText = `${Math.ceil(seconds / 60)} minutes`;
-        } else {
-          retryText = `${Math.ceil(seconds / 3600)} hour(s)`;
-        }
-      }
-
-      message = `NovaAI has reached its free AI limit. Please try again after ${retryText}.`;
+      message = "NovaAI limit reached. Please try again in a few minutes.";
     }
 
     res.write(`data: ${JSON.stringify({ error: message })}\n\n`);

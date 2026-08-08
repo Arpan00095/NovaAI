@@ -27,7 +27,7 @@ import {
   exportChatAsMarkdown,
 } from "../services/export.service";
 
-// File ko Base64 me convert karne ka helper function
+// Helper function to convert File to Base64
 const convertToBase64 = (file) => {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
@@ -110,10 +110,10 @@ const ConversationProvider = ({ children }) => {
     }
   };
 
-  // ==========================================
-  // Updated sendPrompt (Supports Text + File)
-  // ==========================================
-  const sendPrompt = async (prompt, file = null) => {
+  // ==========================================================
+  // Updated sendPrompt (Supports Text + File + Selected Model)
+  // ==========================================================
+  const sendPrompt = async (prompt, file = null, model = "groq-llama") => {
     if (!prompt.trim() && !file) return;
 
     try {
@@ -146,11 +146,13 @@ const ConversationProvider = ({ children }) => {
 
       const token = localStorage.getItem("token");
 
+      // Pass selected model to AI Service
       await sendStreamMessage({
         message: prompt,
         file: fileBase64,
         fileType: file?.type,
         conversationId: activeConversationId,
+        model: model, // <-- NEW PARAMETER PASSED HERE
         token,
 
         onMessage: (chunk) => {
@@ -266,9 +268,7 @@ const ConversationProvider = ({ children }) => {
     }
   };
 
-  // ============================
   // Pin / Unpin Chat
-  // ============================
   const pinChat = async (conversationId, isPinned) => {
     if (isGuest) return;
 
@@ -283,9 +283,7 @@ const ConversationProvider = ({ children }) => {
     }
   };
 
-  // ============================
   // Share Chat
-  // ============================
   const shareChat = async (conversationId) => {
     if (isGuest) return;
 
@@ -302,9 +300,7 @@ const ConversationProvider = ({ children }) => {
     }
   };
 
-  // ============================
   // Archive Chat
-  // ============================
   const archiveChat = async (conversationId, isArchived) => {
     if (isGuest) return;
 
@@ -325,9 +321,7 @@ const ConversationProvider = ({ children }) => {
     }
   };
 
-  // ============================
   // Export Chat
-  // ============================
   const exportPdf = () => {
     try {
       exportChatAsPdf(messages);

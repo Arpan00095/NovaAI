@@ -14,7 +14,7 @@ import PlusMenu from "./PlusMenu";
 import VoiceButton from "./VoiceButton";
 import SendButton from "./SendButton";
 
-const PromptInput = () => {
+const PromptInput = ({ selectedModel = "groq-llama" }) => {
   const textareaRef = useRef(null);
   const fileInputRef = useRef(null);
   const menuRef = useRef(null);
@@ -92,7 +92,7 @@ const PromptInput = () => {
   };
 
   // ===============================
-  // Send Message
+  // Send Message (Passes Selected Model)
   // ===============================
 
   const handleSend = async () => {
@@ -109,7 +109,8 @@ const PromptInput = () => {
       textareaRef.current.style.overflowY = "hidden";
     }
 
-    await sendPrompt(text, fileToSend);
+    // Passes prompt text, file, AND currently selected model
+    await sendPrompt(text, fileToSend, selectedModel);
   };
 
   // ===============================
@@ -161,7 +162,6 @@ const PromptInput = () => {
   }, []);
 
   return (
-    /* Outer container now matches main body background #131314 */
     <div className="bg-[#131314] px-4 pb-4">
       <div
         className="
