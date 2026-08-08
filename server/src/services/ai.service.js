@@ -18,27 +18,27 @@ export const generateConversationTitle = async (message) => {
 };
 
 // ====================================================
-// Smart model selector for NVIDIA API (FAST & HEAVY)
+// Smart model selector for NVIDIA API (FAST & 100% STABLE)
 // ====================================================
 const resolveNvidiaModel = (modelId, promptText) => {
-  // Ultra Mode (Heavy Logic & Coding - Top Tier Model)
+  // Ultra Mode (Heavy Logic & Coding)
   if (modelId === "nvidia-340b") {
-    return "mistralai/mistral-large-2-instruct"; 
+    return "meta/llama-3.1-70b-instruct"; 
   }
   
-  // Auto Mode (Balances Super-Fast Speed and High IQ)
+  // Auto Mode
   if (modelId === "nvidia-auto") {
     const isComplex =
       /3d|three\.js|webgl|shader|canvas|system architecture|complex logic|algorithm|react native/i.test(promptText) ||
       promptText.length > 600;
       
     return isComplex
-      ? "mistralai/mistral-large-2-instruct"       // Heavy prompts ke liye Flagship Model
-      : "nv-mistralai/mistral-nemo-12b-instruct";  // Quick prompts ke liye Lightning Fast Model
+      ? "meta/llama-3.1-70b-instruct"    // Heavy prompts ke liye bada model
+      : "meta/llama-3.1-8b-instruct";    // Normal prompts ke liye SUPER FAST 8B model
   }
   
   // Default Fallback
-  return "nv-mistralai/mistral-nemo-12b-instruct";
+  return "meta/llama-3.1-8b-instruct";
 };
 
 export const chatWithAIStream = async (
@@ -60,7 +60,6 @@ export const chatWithAIStream = async (
 
   const fullSystemPrompt = `${systemPrompt}\n${memoryPrompt}\n\nIMPORTANT: Provide direct response only. Do NOT include internal reasoning, thinking steps, or <think> tags.`;
 
-  // Base Messages Array
   let formattedMessages = [
     { role: "system", content: fullSystemPrompt },
     ...history.map((m) => ({
@@ -104,7 +103,7 @@ export const chatWithAIStream = async (
         model: targetNvidiaModel,
         messages: formattedMessages,
         temperature: 0.2,
-        max_tokens: 8192, // 💥 FIXED: Badha kar 8192 kar diya taaki lamba code kabhi na kate
+        max_tokens: 4096, // 4096 is safe limit for NVIDIA free tier to avoid stopping
         stream: true,
       }),
     });
@@ -113,7 +112,6 @@ export const chatWithAIStream = async (
       throw new Error(`NVIDIA API Error: ${response.statusText}`);
     }
 
-    // Process NVIDIA Stream Engine
     async function* transformNvidiaStream() {
       const reader = response.body.getReader();
       const decoder = new TextDecoder("utf-8");
@@ -153,7 +151,7 @@ export const chatWithAIStream = async (
       messages: formattedMessages,
       model: activeGroqModel,
       stream: true,
-      max_tokens: 4096, // GROQ ke liye bhi thoda badha diya
+      max_tokens: 4096,
       temperature: 0.7,
     });
 
