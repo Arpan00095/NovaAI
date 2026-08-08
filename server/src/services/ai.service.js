@@ -9,7 +9,6 @@ const NVIDIA_API_KEY = env.NVIDIA_API_KEY || process.env.NVIDIA_API_KEY;
 const NVIDIA_URL = "https://integrate.api.nvidia.com/v1/chat/completions";
 
 const PRIMARY_TEXT_MODEL = "llama-3.3-70b-versatile";
-const PRIMARY_VISION_MODEL = "llama-3.2-11b-vision-preview"; // Groq ka active lightweight vision model
 
 export const generateConversationTitle = async (message) => {
   if (!message || message.trim() === "") return "New Conversation";
@@ -18,10 +17,10 @@ export const generateConversationTitle = async (message) => {
 };
 
 // ====================================================
-// Smart model selector for NVIDIA API (Stable & Smart)
+// Smart model selector for NVIDIA API (Stable & Vision)
 // ====================================================
 const resolveNvidiaModel = (modelId, promptText, hasImage = false) => {
-  // 📸 Agar NVIDIA ke sath image aayi hai, toh NVIDIA ka powerful 90B Vision model use hoga
+  // 📸 Agar image upload hui hai, toh NVIDIA ka powerful 90B Vision model use hoga
   if (hasImage) {
     return "meta/llama-3.2-90b-vision-instruct"; 
   }
@@ -89,9 +88,11 @@ export const chatWithAIStream = async (
   }
 
   // ====================================================
-  // ENGINE 1: NVIDIA (Triggered if selectedModel starts with 'nvidia')
+  // SMART ROUTING: Agar photo hai, toh automatically NVIDIA Vision engine use hoga
   // ====================================================
-  if (selectedModel.startsWith("nvidia")) {
+  const shouldUseNvidia = selectedModel.startsWith("nvidia") || !!file;
+
+  if (shouldUseNvidia) {
     const targetNvidiaModel = resolveNvidiaModel(selectedModel, message || "", !!file);
     
     console.log(`🚀 [NVIDIA ENGINE TRIGGERED] -> Model: ${targetNvidiaModel}`);
@@ -112,7 +113,8 @@ export const chatWithAIStream = async (
     });
 
     if (!response.ok) {
-      throw new Error(`NVIDIA API Error: ${response.statusText}`);
+      const errText = await response.text();
+      throw new Error(`NVIDIA API Error: ${response.statusText} - ${errText}`);
     }
 
     async function* transformNvidiaStream() {
@@ -147,15 +149,12 @@ export const chatWithAIStream = async (
   }
 
   // ====================================================
-  // ENGINE 2: GROQ (Default - Fast & Smooth)
+  // DEFAULT ENGINE: GROQ (Pure Text Only)
   // ====================================================
-  // Agar photo hai toh Groq ka Vision model, nahi toh Text model
-  let activeGroqModel = file ? PRIMARY_VISION_MODEL : PRIMARY_TEXT_MODEL;
-
   try {
     const groqStream = await groq.chat.completions.create({
       messages: formattedMessages,
-      model: activeGroqModel,
+      model: PRIMARY_TEXT_MODEL,
       stream: true,
       max_tokens: 4096,
       temperature: 0.7,
@@ -206,7 +205,7 @@ export const chatWithAIStream = async (
 
     return { intent, stream: transformGroqStream() };
   } catch (error) {
-    console.error(`Groq API Error on model (${activeGroqModel}):`, error.message);
+    console.error(`Groq API Error on model (${PRIMARY_TEXT_MODEL}):`, error.message);
     throw error;
   }
 };
