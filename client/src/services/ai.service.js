@@ -1,55 +1,56 @@
 import api from "./api";
 
 // -----------------------------
-// Normal Chat (Supports Text + File)
+// Normal Chat (Supports Text + File + Model Routing)
 // -----------------------------
 export const sendMessage = async (
   message,
   file = null,
   fileType = null,
-  conversationId = null
+  conversationId = null,
+  model = "groq-llama" // Selected model fallback
 ) => {
   const { data } = await api.post("/ai/chat", {
     message,
     file,
     fileType,
     conversationId,
+    model, // Backend ko model batayega
   });
 
   return data;
 };
 
 // -----------------------------
-// Streaming Chat (Supports Text + File)
+// Streaming Chat (Supports Text + File + Model Routing)
 // -----------------------------
 export const sendStreamMessage = async ({
   message,
   file = null,
   fileType = null,
   conversationId,
+  model = "groq-llama", // Context API se model receive hoga
   token,
   onMessage,
   onDone,
   onImage,
 }) => {
-  const response = await fetch(
-    `${api.defaults.baseURL}/ai/chat/stream`,
-    {
-      method: "POST",
+  const response = await fetch(`${api.defaults.baseURL}/ai/chat/stream`, {
+    method: "POST",
 
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${token}`,
-      },
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${token}`,
+    },
 
-      body: JSON.stringify({
-        message,
-        file,        // Base64 image data
-        fileType,    // Image mime type (e.g., image/png)
-        conversationId,
-      }),
-    }
-  );
+    body: JSON.stringify({
+      message,
+      file,            // Base64 image data
+      fileType,        // Image mime type (e.g., image/png)
+      conversationId,
+      model,           // <-- IMPORTANT: Model pass ho raha hai (nvidia-auto / nvidia-340b)
+    }),
+  });
 
   if (!response.ok) {
     throw new Error("Streaming failed");
@@ -76,9 +77,7 @@ export const sendStreamMessage = async ({
     for (const event of events) {
       if (!event.startsWith("data: ")) continue;
 
-      const payload = JSON.parse(
-        event.replace("data: ", "")
-      );
+      const payload = JSON.parse(event.replace("data: ", ""));
 
       // Streaming Text
       if (payload.text && onMessage) {
