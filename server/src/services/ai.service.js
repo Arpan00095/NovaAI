@@ -18,12 +18,13 @@ export const generateConversationTitle = async (message) => {
 };
 
 // ====================================================
-// Smart model selector for NVIDIA Nemotron
+// Smart model selector for NVIDIA Nemotron (FREE TIER SAFE)
 // ====================================================
 const resolveNvidiaModel = (modelId, promptText) => {
-  // PRO / ULTRA MODE (Selects the highly stable 253B Ultra Model)
+  // Free tier par 200B+ models blocked hote hain (404 Error),
+  // isliye hum 'Llama 3.3 70B' (List #30) ko Ultra mode banayenge.
   if (modelId === "nvidia-340b") {
-    return "nvidia/llama-3.1-nemotron-ultra-253b-v1";
+    return "meta/llama-3.3-70b-instruct";
   }
   
   // SMART AUTO MODE
@@ -33,8 +34,8 @@ const resolveNvidiaModel = (modelId, promptText) => {
       promptText.length > 600;
       
     return isComplex
-      ? "nvidia/llama-3.1-nemotron-ultra-253b-v1"     // Heavy prompts ke liye Ultra
-      : "nvidia/llama-3.1-nemotron-70b-instruct";     // Normal/Smart prompts ke liye 70B
+      ? "meta/llama-3.3-70b-instruct"             // Heavy prompts ke liye
+      : "nvidia/llama-3.1-nemotron-70b-instruct"; // Normal/Smart prompts ke liye
   }
   
   // Default Fallback
@@ -91,6 +92,9 @@ export const chatWithAIStream = async (
 
   if (selectedModel.startsWith("nvidia")) {
     const targetNvidiaModel = resolveNvidiaModel(selectedModel, message || "");
+    
+    // Terminal me print karke check karne ke liye
+    console.log(`🚀 [NVIDIA ENGINE TRIGGERED] -> Model: ${targetNvidiaModel}`);
 
     const response = await fetch(NVIDIA_URL, {
       method: "POST",
