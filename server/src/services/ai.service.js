@@ -17,19 +17,27 @@ export const generateConversationTitle = async (message) => {
   return cleanMessage.length > 30 ? cleanMessage.substring(0, 30) + "..." : cleanMessage;
 };
 
+// ====================================================
 // Smart model selector for NVIDIA Nemotron
+// ====================================================
 const resolveNvidiaModel = (modelId, promptText) => {
+  // PRO / ULTRA MODE (Selects the highly stable 253B Ultra Model)
   if (modelId === "nvidia-340b") {
-    return "nvidia/nemotron-4-340b-instruct";
+    return "nvidia/llama-3.1-nemotron-ultra-253b-v1";
   }
+  
+  // SMART AUTO MODE
   if (modelId === "nvidia-auto") {
     const isComplex =
-      /3d|three\.js|webgl|shader|canvas|system architecture|complex logic|algorithm/i.test(promptText) ||
+      /3d|three\.js|webgl|shader|canvas|system architecture|complex logic|algorithm|react native/i.test(promptText) ||
       promptText.length > 600;
+      
     return isComplex
-      ? "nvidia/nemotron-4-340b-instruct"
-      : "nvidia/llama-3.1-nemotron-70b-instruct";
+      ? "nvidia/llama-3.1-nemotron-ultra-253b-v1"     // Heavy prompts ke liye Ultra
+      : "nvidia/llama-3.1-nemotron-70b-instruct";     // Normal/Smart prompts ke liye 70B
   }
+  
+  // Default Fallback
   return "nvidia/llama-3.1-nemotron-70b-instruct";
 };
 
