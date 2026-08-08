@@ -9,7 +9,7 @@ const NVIDIA_API_KEY = env.NVIDIA_API_KEY || process.env.NVIDIA_API_KEY;
 const NVIDIA_URL = "https://integrate.api.nvidia.com/v1/chat/completions";
 
 const PRIMARY_TEXT_MODEL = "llama-3.3-70b-versatile";
-const PRIMARY_VISION_MODEL = "llama-3.2-90b-vision-preview"; // 📸 Groq Fast Vision Model
+const PRIMARY_VISION_MODEL = "llama-3.2-11b-vision-preview"; // Groq ka active lightweight vision model
 
 export const generateConversationTitle = async (message) => {
   if (!message || message.trim() === "") return "New Conversation";
