@@ -9,7 +9,7 @@ const NVIDIA_API_KEY = env.NVIDIA_API_KEY || process.env.NVIDIA_API_KEY;
 const NVIDIA_URL = "https://integrate.api.nvidia.com/v1/chat/completions";
 
 const PRIMARY_TEXT_MODEL = "llama-3.3-70b-versatile";
-const PRIMARY_VISION_MODEL = "qwen/qwen3.6-27b";
+const PRIMARY_VISION_MODEL = "llama-3.2-90b-vision-preview"; // 💥 GROQ Vision Upgrade
 
 export const generateConversationTitle = async (message) => {
   if (!message || message.trim() === "") return "New Conversation";
@@ -18,12 +18,12 @@ export const generateConversationTitle = async (message) => {
 };
 
 // ====================================================
-// Smart model selector for NVIDIA API (FAST, STABLE & VISION)
+// Smart model selector for NVIDIA API (FAST, STABLE & HIGH-IQ VISION)
 // ====================================================
 const resolveNvidiaModel = (modelId, promptText, hasImage = false) => {
-  // 📸 Agar image upload hui hai, toh Vision Model trigger karein
+  // 📸 Agar image upload hui hai, toh Heavy 90B Vision Model trigger karein
   if (hasImage) {
-    return "meta/llama-3.2-11b-vision-instruct"; // NVIDIA's fast & free vision model
+    return "meta/llama-3.2-90b-vision-instruct"; // 💥 NVIDIA Vision Upgrade (11B to 90B)
   }
 
   // 🧠 Ultra Mode (Heavy Logic & Coding)
@@ -94,7 +94,6 @@ export const chatWithAIStream = async (
   // ====================================================
 
   if (selectedModel.startsWith("nvidia")) {
-    // 💥 Yahan hum !!file pass kar rahe hain taaki image detect ho sake
     const targetNvidiaModel = resolveNvidiaModel(selectedModel, message || "", !!file);
     
     console.log(`🚀 [NVIDIA ENGINE TRIGGERED] -> Model: ${targetNvidiaModel}`);
