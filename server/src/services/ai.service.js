@@ -18,28 +18,27 @@ export const generateConversationTitle = async (message) => {
 };
 
 // ====================================================
-// Smart model selector for NVIDIA Nemotron (FREE TIER SAFE)
+// Smart model selector for NVIDIA API (100% STABLE)
 // ====================================================
 const resolveNvidiaModel = (modelId, promptText) => {
-  // Free tier par 200B+ models blocked hote hain (404 Error),
-  // isliye hum 'Llama 3.3 70B' (List #30) ko Ultra mode banayenge.
+  // Ultra Mode
   if (modelId === "nvidia-340b") {
     return "meta/llama-3.3-70b-instruct";
   }
   
-  // SMART AUTO MODE
+  // Auto Mode
   if (modelId === "nvidia-auto") {
     const isComplex =
       /3d|three\.js|webgl|shader|canvas|system architecture|complex logic|algorithm|react native/i.test(promptText) ||
       promptText.length > 600;
       
     return isComplex
-      ? "meta/llama-3.3-70b-instruct"             // Heavy prompts ke liye
-      : "nvidia/llama-3.1-nemotron-70b-instruct"; // Normal/Smart prompts ke liye
+      ? "meta/llama-3.3-70b-instruct"     // Heavy prompts ke liye
+      : "meta/llama-3.1-70b-instruct";    // Normal prompts ke liye (Stable standard Llama 3.1)
   }
   
   // Default Fallback
-  return "nvidia/llama-3.1-nemotron-70b-instruct";
+  return "meta/llama-3.1-70b-instruct";
 };
 
 export const chatWithAIStream = async (
