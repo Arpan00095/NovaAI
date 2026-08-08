@@ -18,23 +18,28 @@ export const generateConversationTitle = async (message) => {
 };
 
 // ====================================================
-// Smart model selector for NVIDIA API (FAST & 100% STABLE)
+// Smart model selector for NVIDIA API (FAST, STABLE & VISION)
 // ====================================================
-const resolveNvidiaModel = (modelId, promptText) => {
-  // Ultra Mode (Heavy Logic & Coding)
+const resolveNvidiaModel = (modelId, promptText, hasImage = false) => {
+  // 📸 Agar image upload hui hai, toh Vision Model trigger karein
+  if (hasImage) {
+    return "meta/llama-3.2-11b-vision-instruct"; // NVIDIA's fast & free vision model
+  }
+
+  // 🧠 Ultra Mode (Heavy Logic & Coding)
   if (modelId === "nvidia-340b") {
     return "meta/llama-3.1-70b-instruct"; 
   }
   
-  // Auto Mode
+  // ⚡ Auto Mode (Text Only)
   if (modelId === "nvidia-auto") {
     const isComplex =
       /3d|three\.js|webgl|shader|canvas|system architecture|complex logic|algorithm|react native/i.test(promptText) ||
       promptText.length > 600;
       
     return isComplex
-      ? "meta/llama-3.1-70b-instruct"    // Heavy prompts ke liye bada model
-      : "meta/llama-3.1-8b-instruct";    // Normal prompts ke liye SUPER FAST 8B model
+      ? "meta/llama-3.1-70b-instruct"    
+      : "meta/llama-3.1-8b-instruct";    
   }
   
   // Default Fallback
@@ -89,7 +94,8 @@ export const chatWithAIStream = async (
   // ====================================================
 
   if (selectedModel.startsWith("nvidia")) {
-    const targetNvidiaModel = resolveNvidiaModel(selectedModel, message || "");
+    // 💥 Yahan hum !!file pass kar rahe hain taaki image detect ho sake
+    const targetNvidiaModel = resolveNvidiaModel(selectedModel, message || "", !!file);
     
     console.log(`🚀 [NVIDIA ENGINE TRIGGERED] -> Model: ${targetNvidiaModel}`);
 
@@ -103,7 +109,7 @@ export const chatWithAIStream = async (
         model: targetNvidiaModel,
         messages: formattedMessages,
         temperature: 0.2,
-        max_tokens: 4096, // 4096 is safe limit for NVIDIA free tier to avoid stopping
+        max_tokens: 4096,
         stream: true,
       }),
     });
