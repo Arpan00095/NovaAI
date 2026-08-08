@@ -18,27 +18,27 @@ export const generateConversationTitle = async (message) => {
 };
 
 // ====================================================
-// Smart model selector for NVIDIA API (100% STABLE)
+// Smart model selector for NVIDIA API (FAST & HEAVY)
 // ====================================================
 const resolveNvidiaModel = (modelId, promptText) => {
-  // Ultra Mode
+  // Ultra Mode (Heavy Logic & Coding - Top Tier Model)
   if (modelId === "nvidia-340b") {
-    return "meta/llama-3.3-70b-instruct";
+    return "mistralai/mistral-large-2-instruct"; 
   }
   
-  // Auto Mode
+  // Auto Mode (Balances Super-Fast Speed and High IQ)
   if (modelId === "nvidia-auto") {
     const isComplex =
       /3d|three\.js|webgl|shader|canvas|system architecture|complex logic|algorithm|react native/i.test(promptText) ||
       promptText.length > 600;
       
     return isComplex
-      ? "meta/llama-3.3-70b-instruct"     // Heavy prompts ke liye
-      : "meta/llama-3.1-70b-instruct";    // Normal prompts ke liye (Stable standard Llama 3.1)
+      ? "mistralai/mistral-large-2-instruct"       // Heavy prompts ke liye Flagship Model
+      : "nv-mistralai/mistral-nemo-12b-instruct";  // Quick prompts ke liye Lightning Fast Model
   }
   
   // Default Fallback
-  return "meta/llama-3.1-70b-instruct";
+  return "nv-mistralai/mistral-nemo-12b-instruct";
 };
 
 export const chatWithAIStream = async (
@@ -92,7 +92,6 @@ export const chatWithAIStream = async (
   if (selectedModel.startsWith("nvidia")) {
     const targetNvidiaModel = resolveNvidiaModel(selectedModel, message || "");
     
-    // Terminal me print karke check karne ke liye
     console.log(`🚀 [NVIDIA ENGINE TRIGGERED] -> Model: ${targetNvidiaModel}`);
 
     const response = await fetch(NVIDIA_URL, {
@@ -105,7 +104,7 @@ export const chatWithAIStream = async (
         model: targetNvidiaModel,
         messages: formattedMessages,
         temperature: 0.2,
-        max_tokens: 2048,
+        max_tokens: 8192, // 💥 FIXED: Badha kar 8192 kar diya taaki lamba code kabhi na kate
         stream: true,
       }),
     });
@@ -154,7 +153,7 @@ export const chatWithAIStream = async (
       messages: formattedMessages,
       model: activeGroqModel,
       stream: true,
-      max_tokens: 2000,
+      max_tokens: 4096, // GROQ ke liye bhi thoda badha diya
       temperature: 0.7,
     });
 
