@@ -9,7 +9,7 @@ const NVIDIA_API_KEY = env.NVIDIA_API_KEY || process.env.NVIDIA_API_KEY;
 const NVIDIA_URL = "https://integrate.api.nvidia.com/v1/chat/completions";
 
 const PRIMARY_TEXT_MODEL = "llama-3.3-70b-versatile";
-const PRIMARY_VISION_MODEL = "llama-3.2-90b-vision-preview"; // 💥 GROQ Vision Upgrade
+const PRIMARY_VISION_MODEL = "llama-3.2-90b-vision-preview"; // 📸 Groq Fast Vision Model
 
 export const generateConversationTitle = async (message) => {
   if (!message || message.trim() === "") return "New Conversation";
@@ -18,12 +18,12 @@ export const generateConversationTitle = async (message) => {
 };
 
 // ====================================================
-// Smart model selector for NVIDIA API (FAST, STABLE & HIGH-IQ VISION)
+// Smart model selector for NVIDIA API (Stable & Smart)
 // ====================================================
 const resolveNvidiaModel = (modelId, promptText, hasImage = false) => {
-  // 📸 Agar image upload hui hai, toh Heavy 90B Vision Model trigger karein
+  // 📸 Agar NVIDIA ke sath image aayi hai, toh NVIDIA ka powerful 90B Vision model use hoga
   if (hasImage) {
-    return "meta/llama-3.2-90b-vision-instruct"; // 💥 NVIDIA Vision Upgrade (11B to 90B)
+    return "meta/llama-3.2-90b-vision-instruct"; 
   }
 
   // 🧠 Ultra Mode (Heavy Logic & Coding)
@@ -42,7 +42,6 @@ const resolveNvidiaModel = (modelId, promptText, hasImage = false) => {
       : "meta/llama-3.1-8b-instruct";    
   }
   
-  // Default Fallback
   return "meta/llama-3.1-8b-instruct";
 };
 
@@ -90,9 +89,8 @@ export const chatWithAIStream = async (
   }
 
   // ====================================================
-  // ENGINE ROUTING: NVIDIA NEMOTRON vs GROQ
+  // ENGINE 1: NVIDIA (Triggered if selectedModel starts with 'nvidia')
   // ====================================================
-
   if (selectedModel.startsWith("nvidia")) {
     const targetNvidiaModel = resolveNvidiaModel(selectedModel, message || "", !!file);
     
@@ -148,7 +146,10 @@ export const chatWithAIStream = async (
     return { intent, stream: transformNvidiaStream() };
   }
 
-  // DEFAULT ENGINE: GROQ
+  // ====================================================
+  // ENGINE 2: GROQ (Default - Fast & Smooth)
+  // ====================================================
+  // Agar photo hai toh Groq ka Vision model, nahi toh Text model
   let activeGroqModel = file ? PRIMARY_VISION_MODEL : PRIMARY_TEXT_MODEL;
 
   try {
